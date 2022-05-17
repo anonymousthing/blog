@@ -5,6 +5,8 @@ title: Playing Switch games at 4K
 
 After working on plex-placebo, I realised that I could potentially use Anime4K for upscaling my Switch games. Turns out it works perfectly! Nowadays, you can get a 1080p60 capture card for ~AUD\$120, so it's essentially a $120 upgrade to play Switch games on your PC at up to 4K -- totally worth it imo.
 
+**TLDR: use a capture card, and use mpv to stream it with the Anime4K shaders loaded.**
+
 <img src="/images/switch4k/unite_after.png" class="glightbox" title="After upscaling" data-gallery="hero"/>
 <span class="caption">*Check out how crispy those lines are! The text is a little bit "painterly", but that's an acceptable tradeoff for the massive clarity improvement*</span>
 
@@ -101,3 +103,7 @@ Unfortunately, I don't have a native Linux install at the moment as I mostly use
     - Install something like [Voicemeeter](https://vb-audio.com/Voicemeeter/). Under Hardware Input 1, select your capture card's audio device. Under Hardware Out A1, select the audio device you usually use as an output. Then, pipe the capture card's audio to your output by clicking the "A" in a circle in the Hardware Input 1 column.
     - Enable loopback in your Windows settings: right click the volume icon in your system tray, and click the "Sounds" option. Then go to the "Recording" tab, double click your capture card's audio device, go to the "Listen" tab, check "Listen to this device" and then click apply.
 1. Power on your Switch, and run the mpv shortcut you made. You should hopefully see your Switch homepage. You can swap between the different Anime4K profiles with CTRL+1-5.
+
+### Using a 720p60 capture card
+
+Some cheaper cards only run at 720p 60fps and 1080p 30fps. My preference is to use 720p for the higher framerates, but mpv will use the 1080p stream by default. In order to force 60fps, add the following to your shortcut: `--demuxer-lavf-o=video_size=1280x720,framerate=60`.
