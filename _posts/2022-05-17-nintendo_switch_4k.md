@@ -7,7 +7,7 @@ After working on plex-placebo, I realised that I could potentially use Anime4K f
 
 **TLDR: use a capture card, and use mpv to stream it with the Anime4K shaders loaded.**
 
-<img src="/media/switch4k/unite_after.png" class="glightbox" title="After upscaling" data-gallery="hero"/>
+<img src="{{ '/media/switch4k/unite_after.png' | git_lfs_rewrite }}" class="glightbox" title="After upscaling" data-gallery="hero"/>
 <span class="caption">*Check out how crispy those lines are! The text is a little bit "painterly", but that's an acceptable tradeoff for the massive clarity improvement*</span>
 
 ## Comparison screenshots (1440p)
@@ -18,19 +18,19 @@ I suggest fullscreening your browser with F11 first before checking these out! Y
 
 Before | After
 --|--
-<img src="/media/switch4k/home_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/home_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="{{ '/media/switch4k/home_before.png' | git_lfs_rewrite }}" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="{{ '/media/switch4k/home_after.png' | git_lfs_rewrite }}" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 ### Pokemon Unite - home screen
 
 Before | After
 --|--
-<img src="/media/switch4k/unite_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/unite_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="{{ '/media/switch4k/unite_before.png' | git_lfs_rewrite }}" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="{{ '/media/switch4k/unite_after.png' | git_lfs_rewrite }}" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 ### Pokemon Unite - in game
 
 Before | After
 --|--
-<img src="/media/switch4k/unite_ingame_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/unite_ingame_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="{{ '/media/switch4k/unite_ingame_before.png' | git_lfs_rewrite }}" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="{{ '/media/switch4k/unite_ingame_after.png' | git_lfs_rewrite }}" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 ### Pokemon Shield
 
@@ -38,15 +38,15 @@ Pokemon Shield has a low internally rendered resolution, so it has really bad bl
 
 Before | After
 --|--
-<img src="/media/switch4k/shield_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/shield_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
-<img src="/media/switch4k/shield_before2.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/shield_after2.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="{{ '/media/switch4k/shield_before.png' | git_lfs_rewrite }}" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="{{ '/media/switch4k/shield_after.png' | git_lfs_rewrite }}" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="{{ '/media/switch4k/shield_before2.png' | git_lfs_rewrite }}" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="{{ '/media/switch4k/shield_after2.png' | git_lfs_rewrite }}" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 ### Overcooked
 Probably the least improvement out of all them.
 
 Before | After
 --|--
-<img src="/media/switch4k/overcooked_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/overcooked_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="{{ '/media/switch4k/overcooked_before.png' | git_lfs_rewrite }}" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="{{ '/media/switch4k/overcooked_after.png' | git_lfs_rewrite }}" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 
 ## Instructions:
@@ -117,4 +117,4 @@ I'm not entirely sure how I have less latency than the results in the capture ca
 
 Here's a 1080p60 comparison video -- can you tell which is which?
 
-<video controls width="100%" src="/media/switch4k/switch_latency_comparison.mp4"></video>
+<video controls width="100%" src="{{ '/media/switch4k/switch_latency_comparison.mp4' | git_lfs_rewrite }}"></video>
