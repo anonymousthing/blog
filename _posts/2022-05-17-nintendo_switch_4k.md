@@ -7,7 +7,7 @@ After working on plex-placebo, I realised that I could potentially use Anime4K f
 
 **TLDR: use a capture card, and use mpv to stream it with the Anime4K shaders loaded.**
 
-<img src="/images/switch4k/unite_after.png" class="glightbox" title="After upscaling" data-gallery="hero"/>
+<img src="/media/switch4k/unite_after.png" class="glightbox" title="After upscaling" data-gallery="hero"/>
 <span class="caption">*Check out how crispy those lines are! The text is a little bit "painterly", but that's an acceptable tradeoff for the massive clarity improvement*</span>
 
 ## Comparison screenshots (1440p)
@@ -18,19 +18,19 @@ I suggest fullscreening your browser with F11 first before checking these out! Y
 
 Before | After
 --|--
-<img src="/images/switch4k/home_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/images/switch4k/home_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="/media/switch4k/home_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/home_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 ### Pokemon Unite - home screen
 
 Before | After
 --|--
-<img src="/images/switch4k/unite_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/images/switch4k/unite_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="/media/switch4k/unite_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/unite_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 ### Pokemon Unite - in game
 
 Before | After
 --|--
-<img src="/images/switch4k/unite_ingame_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/images/switch4k/unite_ingame_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="/media/switch4k/unite_ingame_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/unite_ingame_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 ### Pokemon Shield
 
@@ -38,15 +38,15 @@ Pokemon Shield has a low internally rendered resolution, so it has really bad bl
 
 Before | After
 --|--
-<img src="/images/switch4k/shield_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/images/switch4k/shield_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
-<img src="/images/switch4k/shield_before2.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/images/switch4k/shield_after2.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="/media/switch4k/shield_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/shield_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="/media/switch4k/shield_before2.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/shield_after2.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 ### Overcooked
 Probably the least improvement out of all them.
 
 Before | After
 --|--
-<img src="/images/switch4k/overcooked_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/images/switch4k/overcooked_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
+<img src="/media/switch4k/overcooked_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="/media/switch4k/overcooked_after.png" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 
 ## Instructions:
@@ -107,3 +107,14 @@ Unfortunately, I don't have a native Linux install at the moment as I mostly use
 ### Using a 720p60 capture card
 
 Some cheaper cards only run at 720p 60fps and 1080p 30fps. My preference is to use 720p for the higher framerates, but mpv will use the 1080p stream by default. In order to force 60fps, add the following to your shortcut: `--demuxer-lavf-o=video_size=1280x720,framerate=60`.
+
+
+## But how's the latency?
+
+Very good! Pretty much unnoticeable to the naked eye when comparing the post-upscaled mpv stream on my left monitor, and a passthrough HDMI on the right. I had to record it using super slow-mo on my phone (960fps) to be able to see any difference. I manually counted about ~21 frames delay in the output 30fps video (700ms), so at a 960/30 = 32x slowdown, that is about 22ms of latency.
+
+I'm not entirely sure how I have less latency than the results in the capture card comparisons I linked in Step 1 of my instructions, perhaps since mpv is running fully unbuffered? Take my measurements with a grain of salt, I only did it with my smartphone in 2 minutes (which could be doing post-processing, interpolation, etc) and I didn't do any extensive testing with a proper lag tester.
+
+Here's a 1080p60 comparison video -- can you tell which is which?
+
+<video controls width="100%" src="/media/switch4k/switch_latency_comparison.mp4"></video>
