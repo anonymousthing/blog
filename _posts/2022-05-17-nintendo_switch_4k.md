@@ -56,9 +56,9 @@ Unfortunately, I don't have a native Linux install at the moment as I mostly use
 1. Buy a capture card that supports 1080p60. If you're playing anything competitive or you're sensitive to latency, I would shell out the cash for a well known, good capture card (and not the cheap $30 ones). Some of the cheaper ones lie about their specifications and only support 1080p30 or 720p60, and they have pretty bad latency e.g. ~100ms. It's still a lot better than what the capture card market used to be just a couple of years ago though! You can find a list of popular capture cards and their latencies [here](https://obsproject.com/forum/resources/capture-card-documentation-latency-decode-modes-formats-more.777/).
 1. Dock your Switch
 1. Connect the HDMI to a capture card
-1. Download and install FFmpeg: [https://ffmpeg.org]()
-1. Download mpv: [https://mpv.io]()
-1. Follow these instructions to download and install the Anime4K mpv shaders: [https://github.com/bloc97/Anime4K/blob/master/md/GLSL_Instructions_Windows.md](). You can persist the shaders permanently on mpv startup by editing your `mpv.conf` to have `glsl-shaders="~~/shaders/Anime4K_Clamp_Highlights.glsl;..."`.
+1. Download and install FFmpeg: <https://ffmpeg.org>
+1. Download mpv: <https://mpv.io>
+1. Follow these instructions to download and install the Anime4K mpv shaders: <https://github.com/bloc97/Anime4K/blob/master/md/GLSL_Instructions_Windows.md>. You can persist the shaders permanently on mpv startup by editing your `mpv.conf` to have `glsl-shaders="~~/shaders/Anime4K_Clamp_Highlights.glsl;..."`.
 1. Run `ffmpeg -hide_banner -list_devices true -f dshow -i dummy` to get a list of your video input devices. You should get an output like this:
     ```
     [dshow @ 00000299ca43b780] "HD Pro Webcam C920" (video)
