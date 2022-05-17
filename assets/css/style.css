@@ -14,6 +14,12 @@
     max-width: calc(1200px - (30px * 2));
 }
 
+.hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
 .caption {
     color: #555;
     font-size: 0.9rem;

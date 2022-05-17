@@ -7,8 +7,10 @@ After working on plex-placebo, I realised that I could potentially use Anime4K f
 
 **TLDR: use a capture card, and use mpv to stream it with the Anime4K shaders loaded.**
 
-<img src="{{ '/media/switch4k/unite_after.png' | git_lfs_rewrite }}" class="glightbox" title="After upscaling" data-gallery="hero"/>
-<span class="caption">*Check out how crispy those lines are! The text is a little bit "painterly", but that's an acceptable tradeoff for the massive clarity improvement*</span>
+<div class="hero">
+<img src="{{ '/media/switch4k/hero.png' | git_lfs_rewrite }}" width="600px" class="glightbox" data-gallery="hero"/>
+<span class="caption"><em>Check out how crispy those lines are!</em></span>
+</div>
 
 ## Comparison screenshots (1440p)
 
@@ -21,6 +23,8 @@ Before | After
 <img src="{{ '/media/switch4k/home_before.png' | git_lfs_rewrite }}" class="glightbox" title="Before upscaling" data-gallery="gallery"/>|<img src="{{ '/media/switch4k/home_after.png' | git_lfs_rewrite }}" class="glightbox" title="After upscaling" data-gallery="gallery"/>
 
 ### Pokemon Unite - home screen
+
+The text is a little bit "painterly", but that's an acceptable tradeoff for the massive clarity improvement.
 
 Before | After
 --|--
