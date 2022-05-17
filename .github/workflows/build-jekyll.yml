@@ -3,7 +3,7 @@ name: Build and Deploy to Github Pages
 on:
   push:
     branches:
-      - master # Here source code branch is `master`, it could be other branch
+      - main
 
 jobs:
   build_and_deploy:
@@ -30,6 +30,6 @@ jobs:
           jekyll_cfg: "_config.yml" # Default is _config.yml
           jekyll_baseurl: "" # Default is according to _config.yml
           bundler_ver: ">=0" # Default is latest bundler version
-          cname: "" # Default is to not use a cname
+          cname: "blog.kumo.dev" # Default is to not use a cname
           actor: "" # Default is the GITHUB_ACTOR
           pre_build_commands: "" # Installing additional dependencies (Arch Linux)
