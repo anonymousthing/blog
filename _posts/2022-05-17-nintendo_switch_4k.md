@@ -111,7 +111,7 @@ Some cheaper cards only run at 720p 60fps and 1080p 30fps. My preference is to u
 
 ## But how's the latency?
 
-Very good! Pretty much unnoticeable to the naked eye when comparing the post-upscaled mpv stream on my left monitor, and a passthrough HDMI on the right. I had to record it using super slow-mo on my phone (960fps) to be able to see any difference. I manually counted about ~21 frames delay in the output 30fps video (700ms), so at a 960/30 = 32x slowdown, that is about 22ms of latency.
+Very good! Pretty much unnoticeable to the naked eye when comparing a passthrough HDMI vs the post-upscaled mpv stream. I had to record it using super slow-mo on my phone (960fps) to be able to see any difference. I manually counted about ~21 frames delay in the output 30fps video (700ms), so at a 960/30 = 32x slowdown, that is about 22ms of latency.
 
 I'm not entirely sure how I have less latency than the results in the capture card comparisons I linked in Step 1 of my instructions, perhaps since mpv is running fully unbuffered? Take my measurements with a grain of salt, I only did it with my smartphone in 2 minutes (which could be doing post-processing, interpolation, etc) and I didn't do any extensive testing with a proper lag tester.
 
