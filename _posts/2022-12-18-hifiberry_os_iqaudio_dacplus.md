@@ -11,6 +11,8 @@ Unfortunately, I was disappointed when I flashed HifiberryOS to my Pi's SD card 
 
 1. Write HifiberryOS to the SD card. Don't take the SD card out yet!
 2. `cd` to the `boot` partition of the SD card (the one with the FAT filesystem, and `config.txt` inside it), and run the following script:
+
+
 ```bash
 #!/bin/bash
 
@@ -32,6 +34,7 @@ echo "Done!"
 
 3. This should let you boot and go through the setup flow. After you have finished setting up HifiberryOS, ssh into it and run the following script.
    Note that you'll need to update the `raspberrypi/firmware` commit hash in the script to be the correct commit for the Linux kernel version that you're running (you can check your kernel version with `uname -r`). You can do this by going to the [raspberrypi/firmware Github commits page](https://github.com/raspberrypi/firmware/commits/master), looking for a commit labelled "kernel: bump to X.YY.ZZ" (where X.YY.ZZ is your kernel version), and copying that commit hash.
+
 
 ```bash
 #!/bin/bash
@@ -78,4 +81,5 @@ sleep 10
 reboot
 ```
 
-5. Congratulations! Hopefully, you have HifiberryOS working with an IQaudIO DAC 🙂
+
+4. Congratulations! Hopefully, you have HifiberryOS working with an IQaudIO DAC 🙂
