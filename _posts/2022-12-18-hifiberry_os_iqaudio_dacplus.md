@@ -3,7 +3,7 @@ layout: post
 title: Running Hifiberry OS with an IQaudIO DAC+
 ---
 
-HifiberryOS is a small, functional OS that supports multiple audio sources (Bluetooth, Spotify, Airplay, etc) and has a great looking web interface to control it. However, the only officially supported hardware is Hifiberry's own DACs (which is reasonable).
+[HifiberryOS](https://www.hifiberry.com/hifiberryos/) is a small, functional OS that supports multiple audio sources (Bluetooth, Spotify, Airplay, etc) and has a great looking web interface to control it. However, the only officially supported hardware is Hifiberry's own DACs (which is reasonable).
 
 However, when I was looking for a DAC for my Raspberry Pi earlier this year, Hifiberry's products were either obscenely overpriced here in Australia, or simply out of stock. I decided to settle on the next available option, an IQaudIO DAC+.
 
