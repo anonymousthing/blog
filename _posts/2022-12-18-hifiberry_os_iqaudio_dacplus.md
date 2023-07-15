@@ -61,6 +61,9 @@ Unfortunately, I was disappointed when I flashed HifiberryOS to my Pi's SD card 
     echo "Updating references to hifiberry devices in hifiberry packages"
     sed -i 's/grep hifiberry/grep IQaudIO/g' /opt/hifiberry/bin/reconfigure-players
 
+    # pause-all is triggered whenever changing tracks; it needs a lookup for the sound card to detect active players, so we need to update it here too
+    sed -i 's/grep -i hifiberry/grep -i IQaudIO/g' /opt/hifiberry/bin/pause-all
+
     # `check_dsp` function was broken on my install for some reason (I'm not sure why, when it should theoretically just return "false" for "no DSP HAT detected"), so I disabled it.
     sed -i 's/check_dsp() {/check_dsp() {\
     return/g' /opt/hifiberry/bin/reconfigure-players
