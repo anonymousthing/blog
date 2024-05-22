@@ -1,63 +1,69 @@
 /** glightbox modifications */
 .glightbox {
-    cursor: pointer;
+  cursor: pointer;
 }
 
 .gnext.disabled,
 .gprev.disabled {
-    pointer-events: none;
-    display: none;
+  pointer-events: none;
+  display: none;
 }
 
 /** other style changes */
 .wrapper {
-    max-width: calc(1200px - (30px * 2));
+  max-width: calc(1200px - (30px * 2));
 }
 
 .hero {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
 .caption {
-    color: #555;
-    font-size: 0.9rem;
-    display: flex;
-    justify-content: center;
+  color: #555;
+  font-size: 0.9rem;
+  display: flex;
+  justify-content: center;
 }
 
 .headingLink {
-    position: absolute;
-    transform: translateX(-32px);
-    filter: contrast(0) brightness(1.5);
-    opacity: 0;
-    transition: 0.08s opacity ease-in-out;
+  position: absolute;
+  transform: translateX(-32px);
+  filter: contrast(0) brightness(1.5);
+  opacity: 0;
+  transition: 0.08s opacity ease-in-out;
 }
 
 :where(h2, h3):hover .headingLink {
-    opacity: 0.8;
+  opacity: 0.8;
 }
 
 .headingLink:hover {
-    text-decoration: none;
+  text-decoration: none;
 }
 
 article h1 {
-    font-size: 2rem;
+  font-size: 2rem;
 }
 
 table {
-    border: none;
+  border: none;
 }
 
 table th {
-    text-align: center;
-    background-color: #fcfcfc;
-    border: none;
-    border-bottom: 1px solid #ddd;
+  text-align: center;
+  background-color: #fcfcfc;
+  border: none;
+  border-bottom: 1px solid #ddd;
 }
 
 table td {
-    border: none;
+  border: none;
+}
+
+img.centered {
+  display: block;
+  margin-left: auto;
+  margin-right: auto;
 }
