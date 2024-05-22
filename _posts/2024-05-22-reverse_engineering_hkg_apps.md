@@ -9,7 +9,7 @@ Hyundai/Kia/Genesis (HKG for short) supports connectivity with their newer cars 
 
 However, Hyundai doesn't currently expose any way for you to integrate their vehicle APIs with external systems. I really wanted to get my vehicle data ingested into Home Assistant (HA), so that I could see my car's battery level, remaining distance-to-empty, along with nearby charging stations, all on my home dashboard.
 
-### Prior Art
+## Prior Art
 
 A quick Google shows that some other folks have already done a lot of the hard work to reverse engineer / sniff the APIs that the app hits. To summarise:
 
@@ -25,7 +25,7 @@ Unfortunately, it seems that I was the first one here from Australia, so I would
 
 The APIs were largely reverse engineered by performing a man-in-the-middle (MITM) attack on the apps and sniffing the traffic flow. However, because of protections that HKG put in place on the app, achieving this is a bit fiddly. This blog post goes into detail on what's necessary to do this, and is honestly mostly documentation for myself because I had to do this again after a year and completely forgot how.
 
-### Developer environment - Android VM
+## Developer environment - Android VM
 
 1. It's easiest to do everything via Windows Subsystem for Android (WSA). Because you'll need root access and Magisk in an Android environment, don't install WSA the regular way through the Microsoft Store - you'll need to find a rooted + Magisk WSA installer online (e.g. https://github.com/LSPosed/MagiskOnWSALocal). This requires administrative access to your computer, so research your own distribution with caution. If you feel uncomfortable with this, you can always run it in a virtual machine, as long as your computer supports nested virtualization. Root will be used to load Frida, which we'll need later, and Magisk is needed so that we can hide the fact that we're root from Bluelink (which tries to detect root and then closes the app if it finds out).
    - Note: there's [currently a bug](https://github.com/MustardChef/WSABuilds/issues/159) where the internet inside the WSA instance doesn't work. Until that's fixed, it's best to use WSA 2306.40000.4.0 or earlier, which doesn't have the issue.
@@ -49,11 +49,11 @@ su
 /data/local/tmp/frida-server-X.Y.Z-android-x86_64
 ```
 
-### Developer environment - IDE
+## Developer environment - IDE
 
 You can use whatever you want here, but I used VSCode with the [APKLab](https://github.com/APKLab/APKLab) extension (which wraps a collection of Android APK decompilation and deobfuscation tools).
 
-### Prepping the app
+## Prepping the app
 
 Unfortunately, the Bluelink app is quite well protected, and has various safeguards that will pop a notification and then close the app after you acknowledge it. These safeguards include preventing:
 
@@ -111,7 +111,7 @@ We now need to rebundle all three split apks back together again. Unfortunately,
 4. Run `adb install-multiple -r -d base/dist/base.unpinned.apk split_config.xxhdpi.unpinned.apk split_config.arm64_v8a.unpinned.apk` to install it into your WSA instance. This should install Bluelink, and you should be able to see it in your Windows start menu now.
 5. Open Magisk settings again, and then navigate to the "Configure DenyList" menu. Check BlueLink (make sure to also expand it and ensure that any other sub-apps are checked as well).
 
-### Prepping the MITM
+## Prepping the MITM
 
 1. Download and install [mitmproxy](https://mitmproxy.org/). It's okay to install this in Windows
    directly. Then, open the Start Menu, search for `mitmweb`, and run it. This should open up a terminal with some logs, and also open a web page where detected traffic will be shown.
@@ -121,7 +121,7 @@ We now need to rebundle all three split apks back together again. Unfortunately,
 4. Click the pencil in the top right, and add a manual proxy configuration. Again, my WSA network was being buggy, so I just used my LAN address for my PC here (e.g. 192.168.1.X, port 8080), but theoretically you could also use the IP address for the WSA network adapter on the Windows side which you can get from `ipconfig`.
    ![VirtWifi settings]({{ '/media/hkg/virtwifi_settings.png' | git_lfs_rewrite }}){:.centered}
 
-### Sniffing the traffic
+## Sniffing the traffic
 
 1. Run the app - but not the normal way! We need to start it with Frida and inject some code that will disable as much SSL pinning as possible. The regular anti-SSL-pinning code that APKLab and android-unpinner perform isn't sufficient. Download [this gist](https://gist.github.com/bitnimble/a488fefcfcf6be222713b489502637bf) as `frida.js`. This is a collection of a variety of SSL pinning bypasses that I've amalgamated together that seem to work.
 2. Install the latest version of `frida` with `pip install frida-tools`.
