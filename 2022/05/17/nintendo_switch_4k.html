@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Playing Switch games at 4K</title>
+<meta name="generator" content="Jekyll v4.3.3" />
+<meta property="og:title" content="Playing Switch games at 4K" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="After working on plex-placebo, I realised that I could potentially use Anime4K for upscaling my Switch games. Turns out it works perfectly! Nowadays, you can get a 1080p60 capture card for ~AUD$120, so it’s essentially a $120 upgrade to play Switch games on your PC at up to 4K – totally worth it imo." />
+<meta property="og:description" content="After working on plex-placebo, I realised that I could potentially use Anime4K for upscaling my Switch games. Turns out it works perfectly! Nowadays, you can get a 1080p60 capture card for ~AUD$120, so it’s essentially a $120 upgrade to play Switch games on your PC at up to 4K – totally worth it imo." />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2022-05-17T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Playing Switch games at 4K" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2022-05-17T00:00:00+00:00","datePublished":"2022-05-17T00:00:00+00:00","description":"After working on plex-placebo, I realised that I could potentially use Anime4K for upscaling my Switch games. Turns out it works perfectly! Nowadays, you can get a 1080p60 capture card for ~AUD$120, so it’s essentially a $120 upgrade to play Switch games on your PC at up to 4K – totally worth it imo.","headline":"Playing Switch games at 4K","mainEntityOfPage":{"@type":"WebPage","@id":"/2022/05/17/nintendo_switch_4k.html"},"url":"/2022/05/17/nintendo_switch_4k.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/"></a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/">blog.kumo.dev</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox/dist/css/glightbox.min.css" media="print"
+  onload="this.media='all'" />
+<link rel="stylesheet" href="/assets/css/style.css" />
+<article>
+  <h1>Playing Switch games at 4K</h1>
+  <h5>May 17, 2022</h5>
+  <div><p>After working on plex-placebo, I realised that I could potentially use Anime4K for upscaling my Switch games. Turns out it works perfectly! Nowadays, you can get a 1080p60 capture card for ~AUD$120, so it’s essentially a $120 upgrade to play Switch games on your PC at up to 4K – totally worth it imo.</p>
+
+<p><strong>TLDR: use a capture card, and use mpv to stream it with the Anime4K shaders loaded.</strong></p>
+
+<div class="hero">
+<img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/hero.png" width="600px" class="glightbox" data-gallery="hero" />
+<span class="caption"><em>Check out how crispy those lines are!</em></span>
+</div>
+
+<h2 id="comparison-screenshots-1440p">Comparison screenshots (1440p)</h2>
+
+<p>I suggest fullscreening your browser with F11 first before checking these out! You can click to zoom and use the arrow keys to go back and forth to compare. These screenshots are from using the high-end GPU, B+B set of shaders.</p>
+
+<h3 id="home-screen">Home screen</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Before</th>
+      <th>After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/home_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/home_after.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="pokemon-unite---home-screen">Pokemon Unite - home screen</h3>
+
+<p>The text is a little bit “painterly”, but that’s an acceptable tradeoff for the massive clarity improvement.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Before</th>
+      <th>After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/unite_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/unite_after.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="pokemon-unite---in-game">Pokemon Unite - in game</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Before</th>
+      <th>After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/unite_ingame_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/unite_ingame_after.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="pokemon-shield">Pokemon Shield</h3>
+
+<p>Pokemon Shield has a low internally rendered resolution, so it has really bad blurring and aliasing. Some of these make it through the upscaling as artifacts and flickering, but it’s still better than the original image imo.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Before</th>
+      <th>After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/shield_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/shield_after.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/shield_before2.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/shield_after2.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="overcooked">Overcooked</h3>
+<p>Probably the least improvement out of all them.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Before</th>
+      <th>After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/overcooked_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/overcooked_after.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="instructions">Instructions:</h2>
+
+<p>Unfortunately, I don’t have a native Linux install at the moment as I mostly use WSL (which doesn’t support USB devices without a kernel patch), so instructions are only for Windows right now.</p>
+
+<ol>
+  <li>Buy a capture card that supports 1080p60. If you’re playing anything competitive or you’re sensitive to latency, I would shell out the cash for a well known, good capture card (and not the cheap $30 ones). Some of the cheaper ones lie about their specifications and only support 1080p30 or 720p60, and they have pretty bad latency e.g. ~100ms. It’s still a lot better than what the capture card market used to be just a couple of years ago though! You can find a list of popular capture cards and their latencies <a href="https://obsproject.com/forum/resources/capture-card-documentation-latency-decode-modes-formats-more.777/">here</a>.</li>
+  <li>Dock your Switch</li>
+  <li>Connect the HDMI to a capture card</li>
+  <li>Download and install FFmpeg: <a href="https://ffmpeg.org">https://ffmpeg.org</a></li>
+  <li>Download mpv: <a href="https://mpv.io">https://mpv.io</a></li>
+  <li>Follow these instructions to download and install the Anime4K mpv shaders: <a href="https://github.com/bloc97/Anime4K/blob/master/md/GLSL_Instructions_Windows.md">https://github.com/bloc97/Anime4K/blob/master/md/GLSL_Instructions_Windows.md</a>. You can persist the shaders permanently on mpv startup by editing your <code class="language-plaintext highlighter-rouge">mpv.conf</code> to have <code class="language-plaintext highlighter-rouge">glsl-shaders="~~/shaders/Anime4K_Clamp_Highlights.glsl;..."</code>.</li>
+  <li>Run <code class="language-plaintext highlighter-rouge">ffmpeg -hide_banner -list_devices true -f dshow -i dummy</code> to get a list of your video input devices. You should get an output like this:
+    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> [dshow @ 00000299ca43b780] "HD Pro Webcam C920" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_pnp_\\?\usb#vid_046d&amp;pid_082d&amp;mi_00#7&amp;1e0b1105&amp;1&amp;0000#{65e8773d-8f56-11d0-a3b9-00a0c9223196}\global"
+ [dshow @ 00000299ca43b780] "Live Gamer Ultra-Video" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_pnp_\\?\usb#vid_07ca&amp;pid_0553&amp;mi_00#7&amp;161a77bd&amp;0&amp;0000#{65e8773d-8f56-11d0-a3b9-00a0c9223196}\global"
+ [dshow @ 00000299ca43b780] "Logi Capture" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_sw_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\{4A2FEA90-B0A0-438E-8BC3-D84157660D0A}"
+ [dshow @ 00000299ca43b780] "screen-capture-recorder" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_sw_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\{4EA69364-2C8A-4AE6-A561-56E4B5044439}"
+ [INFO] [DSH]  ffmpeg.exe
+ [INFO] [DSH]  Creating WndMsg Listener Window
+ [INFO] [DSH]  Destroying object
+ [INFO] [DSH]  Destroying WndMsg Listener Window
+ [INFO] [DSH]  Destroyed window
+ [INFO] [DSH]  Unregistered window class
+ [dshow @ 00000299ca43b780] "Camera (NVIDIA Broadcast)" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_sw_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\{7BBFF097-B3FB-4B26-B685-7A998DE7CEAC}"
+ [dshow @ 00000299ca43b780] "OBS Virtual Camera" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_sw_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\{A3FCE0F5-3493-419F-958A-ABA1250EC20B}"
+ [dshow @ 00000299ca43b780] "HDMI (Live Gamer Ultra-Audio)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{E0BCD63D-6CC1-494F-8C96-85F640A90DE5}"
+ [dshow @ 00000299ca43b780] "virtual-audio-capturer" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_sw_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\{8E146464-DB61-4309-AFA1-3578E927E935}"
+ [dshow @ 00000299ca43b780] "Line (3- Steinberg UR12 )" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{1DCDF89F-D9EE-4EB3-9AAA-8734621262F1}"
+ [dshow @ 00000299ca43b780] "VoiceMeeter Aux Output (VB-Audio VoiceMeeter AUX VAIO)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{4B43038E-8341-460C-A2BF-E9583EA6ACFE}"
+ [dshow @ 00000299ca43b780] "Microphone (HD Pro Webcam C920)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{6076A483-B090-4CD0-8E9B-4D06A71E9A2D}"
+ [dshow @ 00000299ca43b780] "VoiceMeeter Output (VB-Audio VoiceMeeter VAIO)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{8527CDAF-8DCC-43E2-B373-814B5BE03E25}"
+ [dshow @ 00000299ca43b780] "VoiceMeeter VAIO3 Output (VB-Audio VoiceMeeter VAIO3)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{E6891ACA-1703-47E5-B6E1-FF9E021EF7F8}"
+ [dshow @ 00000299ca43b780] "Microphone (Steam Streaming Microphone)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{EBC431C2-E37F-495C-B694-E46B1799F9D7}"
+ dummy: Immediate exit requested
+</code></pre></div>    </div>
+    <p>Find your video and audio device that match your capture card (in my case, it’s <code class="language-plaintext highlighter-rouge">Live Gamer Ultra-Video</code> and <code class="language-plaintext highlighter-rouge">HDMI (Live Gamer Ultra-Audio)</code>). On my cheaper generic capture card, it was <code class="language-plaintext highlighter-rouge">USB Video</code> and <code class="language-plaintext highlighter-rouge">Digital Audio Interface (USB Digital Audio)</code>.</p>
+  </li>
+  <li>Create a shortcut to <code class="language-plaintext highlighter-rouge">mpv.exe</code>. Edit the shortcut via right clicking the shortcut -&gt; Properties, and add <code class="language-plaintext highlighter-rouge">av://dshow:video="YourVideoDevice" --profile=low-latency --untimed</code> to the end of the Target field. The full target should look something like <code class="language-plaintext highlighter-rouge">C:\Users\YourUsername\Documents\mpv\mpv.exe av://dshow:video="Live Gamer Ultra-Video" --profile=low-latency --untimed</code></li>
+  <li>Unfortunately, it seems that adding the audio channel into mpv adds a significant amount of latency regardless of any low latency / no buffer settings. To get audio working, you can either:
+    <ul>
+      <li>Install something like <a href="https://vb-audio.com/Voicemeeter/">Voicemeeter</a>. Under Hardware Input 1, select your capture card’s audio device. Under Hardware Out A1, select the audio device you usually use as an output. Then, pipe the capture card’s audio to your output by clicking the “A” in a circle in the Hardware Input 1 column.</li>
+      <li>Enable loopback in your Windows settings: right click the volume icon in your system tray, and click the “Sounds” option. Then go to the “Recording” tab, double click your capture card’s audio device, go to the “Listen” tab, check “Listen to this device” and then click apply.</li>
+    </ul>
+  </li>
+  <li>Power on your Switch, and run the mpv shortcut you made. You should hopefully see your Switch homepage. You can swap between the different Anime4K profiles with CTRL+1-5.</li>
+</ol>
+
+<h3 id="using-a-720p60-capture-card">Using a 720p60 capture card</h3>
+
+<p>Some cheaper cards only run at 720p 60fps and 1080p 30fps. My preference is to use 720p for the higher framerates, but mpv will use the 1080p stream by default. In order to force 60fps, add the following to your shortcut: <code class="language-plaintext highlighter-rouge">--demuxer-lavf-o=video_size=1280x720,framerate=60</code>.</p>
+
+<h2 id="but-hows-the-latency">But how’s the latency?</h2>
+
+<p>Very good! Pretty much unnoticeable to the naked eye when comparing a passthrough HDMI vs the post-upscaled mpv stream. I had to record it using super slow-mo on my phone (960fps) to be able to see any difference. I manually counted about ~21 frames delay in the output 30fps video (700ms), so at a 960/30 = 32x slowdown, that is about 22ms of latency.</p>
+
+<p>I’m not entirely sure how I have less latency than the results in the capture card comparisons I linked in Step 1 of my instructions, perhaps since mpv is running fully unbuffered? Take my measurements with a grain of salt, I only did it with my smartphone in 2 minutes (which could be doing post-processing, interpolation, etc) and I didn’t do any extensive testing with a proper lag tester.</p>
+
+<p>Here’s a 1080p60 comparison video – can you tell which is which?</p>
+
+<video controls="" width="100%" src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/switch_latency_comparison.mp4"></video>
+</div>
+</article>
+<script>
+  /** Add links to headings: from https://darn.es/adding-heading-links-to-your-jekyll-blog/ */
+  const headings = document.querySelectorAll('h2[id],h3[id]');
+  const linkContent = '🔗';
+  for (const heading of headings) {
+    const linkIcon = document.createElement('a');
+    linkIcon.classList.add('headingLink')
+    linkIcon.setAttribute('href', `#${heading.id}`);
+    linkIcon.innerHTML = linkContent;
+    heading.prepend(linkIcon);
+  }
+</script>
+<script src="https://utteranc.es/client.js" repo="bitnimble/bitnimble.github.io" issue-term="pathname"
+  label="post-comments" theme="github-light" crossorigin="anonymous" async>
+  </script>
+
+<script src="https://cdn.jsdelivr.net/gh/mcstudios/glightbox/dist/js/glightbox.min.js"></script>
+<script type="text/javascript">
+  const lightbox = GLightbox({
+    touchNavigation: true,
+    loop: true,
+    autoplayVideos: false
+  });
+</script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading"></h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name"></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>The ??? blog about random tech stuff</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

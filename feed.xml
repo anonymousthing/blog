@@ -1,0 +1,436 @@
+<?xml version="1.0" encoding="utf-8"?><feed xmlns="http://www.w3.org/2005/Atom" ><generator uri="https://jekyllrb.com/" version="4.3.3">Jekyll</generator><link href="/feed.xml" rel="self" type="application/atom+xml" /><link href="/" rel="alternate" type="text/html" /><updated>2024-05-22T13:20:32+00:00</updated><id>/feed.xml</id><subtitle>The ??? blog about random tech stuff</subtitle><author><name></name></author><entry><title type="html">Reverse engineering the Hyundai Bluelink and Kia Connect Apps</title><link href="/2024/05/22/reverse_engineering_hkg_apps.html" rel="alternate" type="text/html" title="Reverse engineering the Hyundai Bluelink and Kia Connect Apps" /><published>2024-05-22T00:00:00+00:00</published><updated>2024-05-22T00:00:00+00:00</updated><id>/2024/05/22/reverse_engineering_hkg_apps</id><content type="html" xml:base="/2024/05/22/reverse_engineering_hkg_apps.html"><![CDATA[<p>I recently bought a Hyundai Ioniq 6; it’s a fantastic car that I’m enjoying a lot, and I only have a couple of nits with it that I’ve largely gotten over now.</p>
+
+<p>Hyundai/Kia/Genesis (HKG for short) supports connectivity with their newer cars - they essentially have a 4G connection and are able to communicate with the mobile app anytime it has signal. The app allows you to both read vehicle state (e.g. whether the climate control is active, or roll up your windows) and perform actions (lock and unlock your doors, remotely start the vehicle and turn on the climate control, etc). It also gives you optional notifications for alerts such as if you forget to lock your doors.</p>
+
+<p>However, Hyundai doesn’t currently expose any way for you to integrate their vehicle APIs with external systems. I really wanted to get my vehicle data ingested into Home Assistant (HA), so that I could see my car’s battery level, remaining distance-to-empty, along with nearby charging stations, all on my home dashboard.</p>
+
+<h2 id="prior-art">Prior Art</h2>
+
+<p>A quick Google shows that some other folks have already done a lot of the hard work to reverse engineer / sniff the APIs that the app hits. To summarise:</p>
+
+<ul>
+  <li>There are two main implementations: <a href="https://github.com/Hacksore/bluelinky">Bluelinky</a> (Node.js) and <a href="https://github.com/Hyundai-Kia-Connect/hyundai_kia_connect_api">hyundai_kia_connect_api</a> (Python)</li>
+  <li>There is an open-source Home Assistant Community Store (HACS) integration to add Hyundai/Kia vehicle support into HA called <a href="https://github.com/Hyundai-Kia-Connect/kia_uvo">kia_uvo</a>, which sits on top of hyundai_kia_connect_api</li>
+  <li>There is a <a href="https://discord.gg/HwnG8sY">Discord community</a> where we coordinate efforts and knowledge</li>
+  <li>Every region (US/Canada/Europe/China/Australia) has its own API server. The US and Canada APIs are the same, and the Europe + China + Australia APIs are largely the same with minor regional variations. The US/Canada vs Europe/China/Australia APIs are <em>completely</em> different.</li>
+  <li>Hyundai vs Kia vs Genesis have different API servers and tokens/secrets, but the APIs and schemas are the same for a given region.</li>
+  <li>Newer HKG cars running ccOS have a different API compared to older vehicles.</li>
+  <li>The US has an online web portal that can perform many of the same functions as the mobile app, making it easier to reverse engineer. Other regions only have a mobile app, which is very locked down and may be more difficult to reverse engineer.</li>
+</ul>
+
+<p>Unfortunately, it seems that I was the first one here from Australia, so I would have to do the work and track down all of the endpoints, secrets, etc for the Australia region.</p>
+
+<p>The APIs were largely reverse engineered by performing a man-in-the-middle (MITM) attack on the apps and sniffing the traffic flow. However, because of protections that HKG put in place on the app, achieving this is a bit fiddly. This blog post goes into detail on what’s necessary to do this, and is honestly mostly documentation for myself because I had to do this again after a year and completely forgot how.</p>
+
+<h2 id="developer-environment---android-vm">Developer environment - Android VM</h2>
+
+<ol>
+  <li>It’s easiest to do everything via Windows Subsystem for Android (WSA). Because you’ll need root access and Magisk in an Android environment, don’t install WSA the regular way through the Microsoft Store - you’ll need to find a rooted + Magisk WSA installer online (e.g. https://github.com/LSPosed/MagiskOnWSALocal). This requires administrative access to your computer, so research your own distribution with caution. If you feel uncomfortable with this, you can always run it in a virtual machine, as long as your computer supports nested virtualization. Root will be used to load Frida, which we’ll need later, and Magisk is needed so that we can hide the fact that we’re root from Bluelink (which tries to detect root and then closes the app if it finds out).
+    <ul>
+      <li>Note: there’s <a href="https://github.com/MustardChef/WSABuilds/issues/159">currently a bug</a> where the internet inside the WSA instance doesn’t work. Until that’s fixed, it’s best to use WSA 2306.40000.4.0 or earlier, which doesn’t have the issue.</li>
+    </ul>
+  </li>
+  <li>Search for <code class="language-plaintext highlighter-rouge">Windows Subsystem for Android</code> in the Start Menu to open the WSA settings. Go to “Advanced Settings” and enable Developer Mode.</li>
+  <li>For some reason, adb debugging from WSL -&gt; WSA didn’t want to connect, so to work around this, I just enabled “Local network access” in Advanced Settings as well, and then connected adb via my computer’s LAN address <code class="language-plaintext highlighter-rouge">192.168.1.X:58526</code> instead, effectively just doing a loopback but through my network.
+<img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/hkg/wsa_settings.png" alt="WSA Settings" class="centered" /></li>
+  <li>Boot WSA, either by clicking “Manage developer settings” or by going back to the System tab and clicking the expander on “Files”. Magisk should open and ask to finish installation - allow it to reboot the WSA instance.</li>
+  <li>Once rebooted, open Magisk’s settings cog in the top right, scroll down, and enable Zygisk. Reboot again by leaving the settings menu and hitting the reboot button in the top right of Magisk.</li>
+  <li>Open Magisk settings again, and enable “Enforce DenyList”. We’ll configure it for our app later.</li>
+  <li>Download the latest version of <code class="language-plaintext highlighter-rouge">frida-server-X.Y.Z-android-x86_64</code> from <a href="https://github.com/frida/frida/releases">their Github</a>. Push it to your WSA instance, make it executable and run it as superuser:</li>
+</ol>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>adb push frida-server-X.Y.Z-android-x86_64 /data/local/tmp/
+adb shell
+<span class="nb">chmod</span> +x /data/local/tmp/frida-server-X.Y.Z-android-x86_64
+
+<span class="c"># This will pop a Magisk prompt, so make sure to accept it</span>
+su
+
+<span class="c"># This will "hang" with no output - this is expected.</span>
+/data/local/tmp/frida-server-X.Y.Z-android-x86_64
+</code></pre></div></div>
+
+<h2 id="developer-environment---ide">Developer environment - IDE</h2>
+
+<p>You can use whatever you want here, but I used VSCode with the <a href="https://github.com/APKLab/APKLab">APKLab</a> extension (which wraps a collection of Android APK decompilation and deobfuscation tools).</p>
+
+<h2 id="prepping-the-app">Prepping the app</h2>
+
+<p>Unfortunately, the Bluelink app is quite well protected, and has various safeguards that will pop a notification and then close the app after you acknowledge it. These safeguards include preventing:</p>
+
+<ul>
+  <li>Attempting to bypass the SSL pinning / installing a different certificate</li>
+  <li>Enabling USB debugging on your device</li>
+  <li>Having a rooted device</li>
+  <li>Altering the binary in any way</li>
+  <li>and more!</li>
+</ul>
+
+<p>So, we’ll need to prepare the app for MITM by removing some of these safeguards. We’ll do this by decompiling the app, flipping a flag (which seems to be a backdoor / escape hatch), enabling debugging, and then recompiling it all again.</p>
+
+<ol>
+  <li>Get “Split APKs Installer” (SAI) off <a href="https://github.com/Aefyr/SAI">Github</a> or <a href="https://f-droid.org/packages/com.aefyr.sai.fdroid/">F-droid</a> and install it.</li>
+  <li>Open it and make a backup of your Bluelink / Kia Connect app. This should export a .apks file into your selected folder. Move this file to your computer.</li>
+  <li>Unzip the .apks file into its constituent .apk files which should consist of a <code class="language-plaintext highlighter-rouge">base.apk</code>, a <code class="language-plaintext highlighter-rouge">split_config.arm64_v8a.apk</code>, and a <code class="language-plaintext highlighter-rouge">split_config.xxhdpi.apk</code>.</li>
+  <li>Open VSCode and choose “APKLab: Open an APK” and select <code class="language-plaintext highlighter-rouge">base.apk</code>. Enable Java decompilation in the next settings modal, click OK, let it decompile, and then open the resulting directory in VSCode again. This should create a new <code class="language-plaintext highlighter-rouge">base</code> directory in the folder where you extracted your apks.</li>
+  <li>Open <code class="language-plaintext highlighter-rouge">base/java_src/com/apk_shield/C0001skdb.java</code> and scroll down to the bottom of the file (it should be fairly large, ~22.5k LOC). Hopefully, there should be a ~60LOC function that handles a bunch of notification stuff. At the bottom of that function, there should be a block that looks like so:</li>
+</ol>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">if</span> <span class="o">(</span><span class="n">pureApp</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">3</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">if</span> <span class="o">(!</span><span class="n">f12M</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="s">"true"</span><span class="o">))</span> <span class="o">{</span>
+                <span class="n">f19f</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+                <span class="k">return</span><span class="o">;</span>
+            <span class="o">}</span>
+            <span class="n">pureApp</span><span class="o">.</span><span class="na">m83a</span><span class="o">();</span>
+            <span class="n">m70g</span><span class="o">();</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">pureApp</span> <span class="o">==</span> <span class="kc">null</span> <span class="o">||</span> <span class="o">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">2</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">f7H</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="s">"true"</span><span class="o">)))</span> <span class="o">{</span>
+            <span class="n">pureApp</span><span class="o">.</span><span class="na">m74c</span><span class="o">();</span>
+            <span class="n">f19f</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="n">pureApp</span><span class="o">.</span><span class="na">m83a</span><span class="o">();</span>
+            <span class="n">m70g</span><span class="o">();</span>
+        <span class="o">}</span>
+</code></pre></div></div>
+
+<ol>
+  <li>We’re interested in the first if statement, specifically <code class="language-plaintext highlighter-rouge">!f12M.contains("true")</code>. If you go all the way back up to the top of the file or use a search, you should hopefully be able to see the variable declaration which will look like:</li>
+</ol>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="cm">/* renamed from: M */</span>
+    <span class="kd">private</span> <span class="kd">static</span> <span class="nc">String</span> <span class="n">f12M</span> <span class="o">=</span> <span class="s">"true"</span><span class="o">;</span>
+</code></pre></div></div>
+
+<ol>
+  <li>We now know that the variable that we’re after is <code class="language-plaintext highlighter-rouge">M</code>. Open
+<code class="language-plaintext highlighter-rouge">base/smali/com/apk_shield/skdb.smali</code>. After you skip the first 100 lines or so which are just
+initialising static fields, you should reach a constructor that then defines a bunch of private
+variables - this follow the same structure as the Java. Look for a line like <code class="language-plaintext highlighter-rouge">sput-object v0,
+Lcom/apk_shield/skdb;-&gt;M:Ljava/lang/String;</code> (note the <code class="language-plaintext highlighter-rouge">M</code> variable name).</li>
+  <li>Immediately before that line, there should be a <code class="language-plaintext highlighter-rouge">const-string v0, "true"</code> defined. Change <code class="language-plaintext highlighter-rouge">"true"</code> to <code class="language-plaintext highlighter-rouge">"false"</code>.</li>
+  <li>Right click <code class="language-plaintext highlighter-rouge">apktool.yml</code> again, and click “APKLab: Rebuild the APK”. Hopefully this works. If not, deal with any errors (you might need to install various Android build dependencies etc). This should result in a <code class="language-plaintext highlighter-rouge">base/dist/base.apk</code> being created.</li>
+</ol>
+
+<p>We now need to rebundle all three split apks back together again. Unfortunately, since we have modified the base.apk, the apk signature will have changed and we need it to be the same for all three apks. There’s probably a more focused tool for this, but I’ve just been using <a href="https://github.com/mitmproxy/android-unpinner">android-unpinner</a>. This will enable debugging support for the app, bundle a small amount of certificate unpinning code (this doesn’t really matter since we’ll inject our own via Frida anyway), and re-sign all apks.</p>
+
+<ol>
+  <li>Install android-unpinner using the instructions in their readme.</li>
+  <li><code class="language-plaintext highlighter-rouge">cd</code> to the root of where you extracted your apks.</li>
+  <li>Run <code class="language-plaintext highlighter-rouge">android-unpinner patch-apks base/dist/base.apk split_config.xxhdpi.apk split_config.arm64_v8a.apk</code>. This will create <code class="language-plaintext highlighter-rouge">*.unpinned.apk</code> versions of all the specified apks.</li>
+  <li>Run <code class="language-plaintext highlighter-rouge">adb install-multiple -r -d base/dist/base.unpinned.apk split_config.xxhdpi.unpinned.apk split_config.arm64_v8a.unpinned.apk</code> to install it into your WSA instance. This should install Bluelink, and you should be able to see it in your Windows start menu now.</li>
+  <li>Open Magisk settings again, and then navigate to the “Configure DenyList” menu. Check BlueLink (make sure to also expand it and ensure that any other sub-apps are checked as well).</li>
+</ol>
+
+<h2 id="prepping-the-mitm">Prepping the MITM</h2>
+
+<ol>
+  <li>Download and install <a href="https://mitmproxy.org/">mitmproxy</a>. It’s okay to install this in Windows
+directly. Then, open the Start Menu, search for <code class="language-plaintext highlighter-rouge">mitmweb</code>, and run it. This should open up a terminal with some logs, and also open a web page where detected traffic will be shown.</li>
+  <li>Open WSA settings again, go to Advanced Settings, and click on “Manage developer settings”. This should open the Developer Options activity view inside Android.</li>
+  <li>Click the search button in the top right, and search for “Wifi”. Select the “VirtWifi” network.
+<img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/hkg/virtwifi.png" alt="Wifi listing" class="centered" /></li>
+  <li>Click the pencil in the top right, and add a manual proxy configuration. Again, my WSA network was being buggy, so I just used my LAN address for my PC here (e.g. 192.168.1.X, port 8080), but theoretically you could also use the IP address for the WSA network adapter on the Windows side which you can get from <code class="language-plaintext highlighter-rouge">ipconfig</code>.
+<img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/hkg/virtwifi_settings.png" alt="VirtWifi settings" class="centered" /></li>
+</ol>
+
+<h2 id="sniffing-the-traffic">Sniffing the traffic</h2>
+
+<ol>
+  <li>Run the app - but not the normal way! We need to start it with Frida and inject some code that will disable as much SSL pinning as possible. The regular anti-SSL-pinning code that APKLab and android-unpinner perform isn’t sufficient. Download <a href="https://gist.github.com/bitnimble/a488fefcfcf6be222713b489502637bf">this gist</a> as <code class="language-plaintext highlighter-rouge">frida.js</code>. This is a collection of a variety of SSL pinning bypasses that I’ve amalgamated together that seem to work.</li>
+  <li>Install the latest version of <code class="language-plaintext highlighter-rouge">frida</code> with <code class="language-plaintext highlighter-rouge">pip install frida-tools</code>.</li>
+  <li>Start the app with <code class="language-plaintext highlighter-rouge">frida -l frida.js -U -f com.hyundai.bluelink.aus</code>.</li>
+  <li>This should open the Bluelink app, load the splash + login page, and give you a Windows notification saying something like “The app was forged. Please install the app from the valid source”. However, we can now just ignore this notification because of the work we did to prep the app beforehand - the app should not close when this notification comes up.</li>
+  <li>Looking at the mitmweb page, we should also see some traffic already coming in. The app will be registering for push notifications, downloading JS chunks, and acquiring any tokens and stamps it needs.
+<img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/hkg/mitm.png" alt="mitmweb logs" class="centered" /></li>
+  <li>Login to the app. This should fire off a whole series of requests, performing authentication etc.</li>
+</ol>
+
+<p>Now that the app has been successfully MITM’d and traffic can be sniffed, the API endpoints can be reverse engineered without too much more effort.</p>
+
+<p>The next post will look at the login flow, stamp generation, and a summary of the APIs.</p>]]></content><author><name></name></author><summary type="html"><![CDATA[I recently bought a Hyundai Ioniq 6; it’s a fantastic car that I’m enjoying a lot, and I only have a couple of nits with it that I’ve largely gotten over now.]]></summary></entry><entry><title type="html">Running Hifiberry OS with an IQaudIO DAC+</title><link href="/2022/12/18/hifiberry_os_iqaudio_dacplus.html" rel="alternate" type="text/html" title="Running Hifiberry OS with an IQaudIO DAC+" /><published>2022-12-18T00:00:00+00:00</published><updated>2022-12-18T00:00:00+00:00</updated><id>/2022/12/18/hifiberry_os_iqaudio_dacplus</id><content type="html" xml:base="/2022/12/18/hifiberry_os_iqaudio_dacplus.html"><![CDATA[<p><a href="https://www.hifiberry.com/hifiberryos/">HifiberryOS</a> is a small, functional OS that supports multiple audio sources (Bluetooth, Spotify, Airplay, etc) and has a great looking web interface to control it. However, the only officially supported hardware is Hifiberry’s own DACs (which is reasonable).</p>
+
+<p>However, when I was looking for a DAC for my Raspberry Pi earlier this year, Hifiberry’s products were either obscenely overpriced here in Australia, or simply out of stock. I decided to settle on the next available option, an IQaudIO DAC+.</p>
+
+<p>Unfortunately, I was disappointed when I flashed HifiberryOS to my Pi’s SD card and it immediately got stuck in a boot loop. In summary, HifiberryOS’s scripts (and OS build) are quite locked to Hifiberry devices, so this post outlines what you need to do in order to get a third-party DAC running.</p>
+
+<ol>
+  <li>Write HifiberryOS to the SD card. Don’t take the SD card out yet!</li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">cd</code> to the <code class="language-plaintext highlighter-rouge">boot</code> partition of the SD card (the one with the FAT filesystem, and <code class="language-plaintext highlighter-rouge">config.txt</code> inside it), and run the following script:</p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="c">#!/bin/bash</span>
+
+ <span class="c"># By default, HifiberryOS has their own dtoverlay specified in config.txt. Remove it and add the iqaudio-dacplus one instead.</span>
+ <span class="nb">echo</span> <span class="s2">"Updating dtoverlays in bootloader config"</span>
+ <span class="nb">sed</span> <span class="nt">-i</span> .bak <span class="s1">'/hifiberry/d'</span> config.txt
+ <span class="nb">sed</span> <span class="nt">-i</span> .bak <span class="s1">'/i2c-gpio/d'</span> config.txt
+ <span class="nb">echo</span> <span class="s2">"dtoverlay=iqaudio-dacplus"</span> <span class="o">&gt;&gt;</span> config.txt
+
+ <span class="c"># We also need the binary dtoverlay in some cases, so add it just in case (although I think it should be available on the DACs EEPROM in most cases).</span>
+ <span class="nb">echo</span> <span class="s2">"Downloading dtoverlay blob"</span>
+ curl <span class="nt">-O</span> <span class="s2">"https://github.com/raspberrypi/firmware/raw/master/boot/overlays/iqaudio-dacplus.dtbo"</span> <span class="o">&gt;</span> overlays/iqaudio-dacplus.dtbo
+
+ <span class="nb">touch </span>noreboot
+ <span class="nb">touch </span>ssh
+
+ <span class="nb">echo</span> <span class="s2">"Done!"</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>This should let you boot and go through the setup flow. After you have finished setting up HifiberryOS, ssh into it and run the following script.
+Note that you’ll need to update the <code class="language-plaintext highlighter-rouge">raspberrypi/firmware</code> commit hash in the script to be the correct commit for the Linux kernel version that you’re running (you can check your kernel version with <code class="language-plaintext highlighter-rouge">uname -r</code>). You can do this by going to the <a href="https://github.com/raspberrypi/firmware/commits/master">raspberrypi/firmware Github commits page</a>, looking for a commit labelled “kernel: bump to X.YY.ZZ” (where X.YY.ZZ is your kernel version), and copying that commit hash.</p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="c">#!/bin/bash</span>
+
+ <span class="c"># hifiberry-detect is a service that searches for a Hifiberry HAT and writes the appropriate dtoverlay into /boot/config.txt. Disable this since we don't have a Hifiberry.</span>
+ <span class="nb">echo</span> <span class="s2">"Removing hifiberry-detect service"</span>
+ systemctl stop hifiberry-detect
+ systemctl disable hifiberry-detect
+ <span class="nb">rm</span> /usr/lib/systemd/system/hifiberry-detect.service
+
+ <span class="c"># Run this again, because hifiberry-detect will have written it after we booted.</span>
+ <span class="nb">echo</span> <span class="s2">"Dropping hifiberry dtoverlays"</span>
+ mount <span class="nt">-o</span> remount,rw /boot
+ <span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'/hifiberry/d'</span> /boot/config.txt
+
+ <span class="c"># Download and depmod the kernel modules</span>
+ <span class="c"># This commit corresponds to version 5.15.78; you'll need to find the correct commit as explained above.</span>
+ <span class="nb">echo</span> <span class="s2">"Downloading kernel modules"</span>
+ <span class="nv">VERSION</span><span class="o">=</span><span class="s2">"5.15.78-v7l"</span>
+ curl <span class="nt">-L</span> <span class="s2">"https://github.com/raspberrypi/firmware/raw/6cbf00359959cf7381f4e3773037c7d5573d94b2/modules/</span><span class="nv">$VERSION</span><span class="s2">%2B/kernel/sound/soc/bcm/snd-soc-iqaudio-dac.ko.xz"</span> <span class="o">&gt;</span> <span class="s2">"/lib/modules/</span><span class="nv">$VERSION</span><span class="s2">/kernel/sound/soc/bcm/snd-soc-iqaudio-dac.ko.xz"</span>
+ unxz <span class="s2">"/lib/modules/</span><span class="nv">$VERSION</span><span class="s2">/kernel/sound/soc/bcm/snd-soc-iqaudio-dac.ko.xz"</span>
+ <span class="nb">echo</span> <span class="s2">"Installing kernel modules"</span>
+ depmod
+ modprobe snd-soc-iqaudio-dac
+
+ <span class="c"># There are a bunch of calls to `aplay -L` etc that try to find a Hifiberry device. We replace those greps with "IQaudIO" instead, so that it matches our DAC. Replace this with your own necessary string, if you have some other third-party DAC.</span>
+ <span class="nb">echo</span> <span class="s2">"Updating references to hifiberry devices in hifiberry packages"</span>
+ <span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s/grep hifiberry/grep IQaudIO/g'</span> /opt/hifiberry/bin/reconfigure-players
+
+ <span class="c"># pause-all is triggered whenever changing tracks; it needs a lookup for the sound card to detect active players, so we need to update it here too</span>
+ <span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s/grep -i hifiberry/grep -i IQaudIO/g'</span> /opt/hifiberry/bin/pause-all
+
+ <span class="c"># `check_dsp` function was broken on my install for some reason (I'm not sure why, when it should theoretically just return "false" for "no DSP HAT detected"), so I disabled it.</span>
+ <span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s/check_dsp() {/check_dsp() {\
+ return/g'</span> /opt/hifiberry/bin/reconfigure-players
+ <span class="c"># dsptoolkit was also failing, so disable it too.</span>
+ <span class="nb">mv</span> /bin/dsptoolkit /bin/dsptoolkit2
+ <span class="nb">touch</span> /bin/dsptoolkit
+ <span class="nb">chmod</span> +x /bin/dsptoolkit
+
+ <span class="c"># Write the new settings, and then reboot.</span>
+ <span class="nb">echo</span> <span class="s2">"Reconfiguring players"</span>
+ /opt/hifiberry/bin/reconfigure-players
+
+ <span class="nb">echo</span> <span class="s2">"Done! Rebooting in 10 seconds..."</span>
+ <span class="nb">sleep </span>10
+ reboot
+</code></pre></div>    </div>
+  </li>
+  <li>Congratulations! Hopefully, you have HifiberryOS working with an IQaudIO DAC 🙂</li>
+</ol>]]></content><author><name></name></author><summary type="html"><![CDATA[HifiberryOS is a small, functional OS that supports multiple audio sources (Bluetooth, Spotify, Airplay, etc) and has a great looking web interface to control it. However, the only officially supported hardware is Hifiberry’s own DACs (which is reasonable).]]></summary></entry><entry><title type="html">Installing Realtek RTL8125B drivers on Proxmox</title><link href="/2022/12/07/realtek_drivers_proxmox.html" rel="alternate" type="text/html" title="Installing Realtek RTL8125B drivers on Proxmox" /><published>2022-12-07T00:00:00+00:00</published><updated>2022-12-07T00:00:00+00:00</updated><id>/2022/12/07/realtek_drivers_proxmox</id><content type="html" xml:base="/2022/12/07/realtek_drivers_proxmox.html"><![CDATA[<p>I run my router as an opnsense VM inside Proxmox, and recently upgraded to a new RTL8125B 4x 2.5GbE card. Opnsense was happy with it, but I had quite a bit of jitter and dropped packets.
+Because Opnsense gets a virtualised bridge, I needed to update the Realtek drivers in the Proxmox host instead.</p>
+
+<p>Note: my connection to the Proxmox host is over a different connection, and not to the Realtek card in question. I essentially have a secondary management port (Intel-based), so in my case, none of the following instructions drop my SSH connection, I am safe to reboot and re-SSH, etc. If that doesn’t apply to you, you should follow these instructions instead: https://github.com/dgparker/RTL8125-proxmox-ve-install-script</p>
+
+<h2 id="instructions">Instructions</h2>
+
+<div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code># Install build dependencies + appropriate linux-headers package
+apt install -y dkms build-essential pve-headers-$(uname -r)
+
+# Download the latest r8125 dkms package
+curl -s https://api.github.com/repos/awesometic/realtek-r8125-dkms/releases/latest |
+  grep "browser_download_url.*amd64.deb" |
+  cut -d : -f 2,3 |
+  tr -d \" |
+  wget -i -
+
+# Install it
+dpkg -i realtek-r8125-dkms*.deb
+
+# Blacklist the old driver
+echo "blacklist r8169" &gt; /etc/modprobe.d/blacklist-r8169.conf
+
+# Update initramfs
+update-initramfs -u
+
+echo "Finished, please reboot now!"
+</code></pre></div></div>]]></content><author><name></name></author><summary type="html"><![CDATA[I run my router as an opnsense VM inside Proxmox, and recently upgraded to a new RTL8125B 4x 2.5GbE card. Opnsense was happy with it, but I had quite a bit of jitter and dropped packets. Because Opnsense gets a virtualised bridge, I needed to update the Realtek drivers in the Proxmox host instead.]]></summary></entry><entry><title type="html">Playing Switch games at 4K</title><link href="/2022/05/17/nintendo_switch_4k.html" rel="alternate" type="text/html" title="Playing Switch games at 4K" /><published>2022-05-17T00:00:00+00:00</published><updated>2022-05-17T00:00:00+00:00</updated><id>/2022/05/17/nintendo_switch_4k</id><content type="html" xml:base="/2022/05/17/nintendo_switch_4k.html"><![CDATA[<p>After working on plex-placebo, I realised that I could potentially use Anime4K for upscaling my Switch games. Turns out it works perfectly! Nowadays, you can get a 1080p60 capture card for ~AUD$120, so it’s essentially a $120 upgrade to play Switch games on your PC at up to 4K – totally worth it imo.</p>
+
+<p><strong>TLDR: use a capture card, and use mpv to stream it with the Anime4K shaders loaded.</strong></p>
+
+<div class="hero">
+<img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/hero.png" width="600px" class="glightbox" data-gallery="hero" />
+<span class="caption"><em>Check out how crispy those lines are!</em></span>
+</div>
+
+<h2 id="comparison-screenshots-1440p">Comparison screenshots (1440p)</h2>
+
+<p>I suggest fullscreening your browser with F11 first before checking these out! You can click to zoom and use the arrow keys to go back and forth to compare. These screenshots are from using the high-end GPU, B+B set of shaders.</p>
+
+<h3 id="home-screen">Home screen</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Before</th>
+      <th>After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/home_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/home_after.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="pokemon-unite---home-screen">Pokemon Unite - home screen</h3>
+
+<p>The text is a little bit “painterly”, but that’s an acceptable tradeoff for the massive clarity improvement.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Before</th>
+      <th>After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/unite_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/unite_after.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="pokemon-unite---in-game">Pokemon Unite - in game</h3>
+
+<table>
+  <thead>
+    <tr>
+      <th>Before</th>
+      <th>After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/unite_ingame_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/unite_ingame_after.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="pokemon-shield">Pokemon Shield</h3>
+
+<p>Pokemon Shield has a low internally rendered resolution, so it has really bad blurring and aliasing. Some of these make it through the upscaling as artifacts and flickering, but it’s still better than the original image imo.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Before</th>
+      <th>After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/shield_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/shield_after.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/shield_before2.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/shield_after2.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<h3 id="overcooked">Overcooked</h3>
+<p>Probably the least improvement out of all them.</p>
+
+<table>
+  <thead>
+    <tr>
+      <th>Before</th>
+      <th>After</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/overcooked_before.png" class="glightbox" title="Before upscaling" data-gallery="gallery" /></td>
+      <td><img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/overcooked_after.png" class="glightbox" title="After upscaling" data-gallery="gallery" /></td>
+    </tr>
+  </tbody>
+</table>
+
+<h2 id="instructions">Instructions:</h2>
+
+<p>Unfortunately, I don’t have a native Linux install at the moment as I mostly use WSL (which doesn’t support USB devices without a kernel patch), so instructions are only for Windows right now.</p>
+
+<ol>
+  <li>Buy a capture card that supports 1080p60. If you’re playing anything competitive or you’re sensitive to latency, I would shell out the cash for a well known, good capture card (and not the cheap $30 ones). Some of the cheaper ones lie about their specifications and only support 1080p30 or 720p60, and they have pretty bad latency e.g. ~100ms. It’s still a lot better than what the capture card market used to be just a couple of years ago though! You can find a list of popular capture cards and their latencies <a href="https://obsproject.com/forum/resources/capture-card-documentation-latency-decode-modes-formats-more.777/">here</a>.</li>
+  <li>Dock your Switch</li>
+  <li>Connect the HDMI to a capture card</li>
+  <li>Download and install FFmpeg: <a href="https://ffmpeg.org">https://ffmpeg.org</a></li>
+  <li>Download mpv: <a href="https://mpv.io">https://mpv.io</a></li>
+  <li>Follow these instructions to download and install the Anime4K mpv shaders: <a href="https://github.com/bloc97/Anime4K/blob/master/md/GLSL_Instructions_Windows.md">https://github.com/bloc97/Anime4K/blob/master/md/GLSL_Instructions_Windows.md</a>. You can persist the shaders permanently on mpv startup by editing your <code class="language-plaintext highlighter-rouge">mpv.conf</code> to have <code class="language-plaintext highlighter-rouge">glsl-shaders="~~/shaders/Anime4K_Clamp_Highlights.glsl;..."</code>.</li>
+  <li>Run <code class="language-plaintext highlighter-rouge">ffmpeg -hide_banner -list_devices true -f dshow -i dummy</code> to get a list of your video input devices. You should get an output like this:
+    <div class="language-plaintext highlighter-rouge"><div class="highlight"><pre class="highlight"><code> [dshow @ 00000299ca43b780] "HD Pro Webcam C920" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_pnp_\\?\usb#vid_046d&amp;pid_082d&amp;mi_00#7&amp;1e0b1105&amp;1&amp;0000#{65e8773d-8f56-11d0-a3b9-00a0c9223196}\global"
+ [dshow @ 00000299ca43b780] "Live Gamer Ultra-Video" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_pnp_\\?\usb#vid_07ca&amp;pid_0553&amp;mi_00#7&amp;161a77bd&amp;0&amp;0000#{65e8773d-8f56-11d0-a3b9-00a0c9223196}\global"
+ [dshow @ 00000299ca43b780] "Logi Capture" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_sw_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\{4A2FEA90-B0A0-438E-8BC3-D84157660D0A}"
+ [dshow @ 00000299ca43b780] "screen-capture-recorder" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_sw_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\{4EA69364-2C8A-4AE6-A561-56E4B5044439}"
+ [INFO] [DSH]  ffmpeg.exe
+ [INFO] [DSH]  Creating WndMsg Listener Window
+ [INFO] [DSH]  Destroying object
+ [INFO] [DSH]  Destroying WndMsg Listener Window
+ [INFO] [DSH]  Destroyed window
+ [INFO] [DSH]  Unregistered window class
+ [dshow @ 00000299ca43b780] "Camera (NVIDIA Broadcast)" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_sw_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\{7BBFF097-B3FB-4B26-B685-7A998DE7CEAC}"
+ [dshow @ 00000299ca43b780] "OBS Virtual Camera" (video)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_sw_{860BB310-5D01-11D0-BD3B-00A0C911CE86}\{A3FCE0F5-3493-419F-958A-ABA1250EC20B}"
+ [dshow @ 00000299ca43b780] "HDMI (Live Gamer Ultra-Audio)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{E0BCD63D-6CC1-494F-8C96-85F640A90DE5}"
+ [dshow @ 00000299ca43b780] "virtual-audio-capturer" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_sw_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\{8E146464-DB61-4309-AFA1-3578E927E935}"
+ [dshow @ 00000299ca43b780] "Line (3- Steinberg UR12 )" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{1DCDF89F-D9EE-4EB3-9AAA-8734621262F1}"
+ [dshow @ 00000299ca43b780] "VoiceMeeter Aux Output (VB-Audio VoiceMeeter AUX VAIO)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{4B43038E-8341-460C-A2BF-E9583EA6ACFE}"
+ [dshow @ 00000299ca43b780] "Microphone (HD Pro Webcam C920)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{6076A483-B090-4CD0-8E9B-4D06A71E9A2D}"
+ [dshow @ 00000299ca43b780] "VoiceMeeter Output (VB-Audio VoiceMeeter VAIO)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{8527CDAF-8DCC-43E2-B373-814B5BE03E25}"
+ [dshow @ 00000299ca43b780] "VoiceMeeter VAIO3 Output (VB-Audio VoiceMeeter VAIO3)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{E6891ACA-1703-47E5-B6E1-FF9E021EF7F8}"
+ [dshow @ 00000299ca43b780] "Microphone (Steam Streaming Microphone)" (audio)
+ [dshow @ 00000299ca43b780]   Alternative name "@device_cm_{33D9A762-90C8-11D0-BD43-00A0C911CE86}\wave_{EBC431C2-E37F-495C-B694-E46B1799F9D7}"
+ dummy: Immediate exit requested
+</code></pre></div>    </div>
+    <p>Find your video and audio device that match your capture card (in my case, it’s <code class="language-plaintext highlighter-rouge">Live Gamer Ultra-Video</code> and <code class="language-plaintext highlighter-rouge">HDMI (Live Gamer Ultra-Audio)</code>). On my cheaper generic capture card, it was <code class="language-plaintext highlighter-rouge">USB Video</code> and <code class="language-plaintext highlighter-rouge">Digital Audio Interface (USB Digital Audio)</code>.</p>
+  </li>
+  <li>Create a shortcut to <code class="language-plaintext highlighter-rouge">mpv.exe</code>. Edit the shortcut via right clicking the shortcut -&gt; Properties, and add <code class="language-plaintext highlighter-rouge">av://dshow:video="YourVideoDevice" --profile=low-latency --untimed</code> to the end of the Target field. The full target should look something like <code class="language-plaintext highlighter-rouge">C:\Users\YourUsername\Documents\mpv\mpv.exe av://dshow:video="Live Gamer Ultra-Video" --profile=low-latency --untimed</code></li>
+  <li>Unfortunately, it seems that adding the audio channel into mpv adds a significant amount of latency regardless of any low latency / no buffer settings. To get audio working, you can either:
+    <ul>
+      <li>Install something like <a href="https://vb-audio.com/Voicemeeter/">Voicemeeter</a>. Under Hardware Input 1, select your capture card’s audio device. Under Hardware Out A1, select the audio device you usually use as an output. Then, pipe the capture card’s audio to your output by clicking the “A” in a circle in the Hardware Input 1 column.</li>
+      <li>Enable loopback in your Windows settings: right click the volume icon in your system tray, and click the “Sounds” option. Then go to the “Recording” tab, double click your capture card’s audio device, go to the “Listen” tab, check “Listen to this device” and then click apply.</li>
+    </ul>
+  </li>
+  <li>Power on your Switch, and run the mpv shortcut you made. You should hopefully see your Switch homepage. You can swap between the different Anime4K profiles with CTRL+1-5.</li>
+</ol>
+
+<h3 id="using-a-720p60-capture-card">Using a 720p60 capture card</h3>
+
+<p>Some cheaper cards only run at 720p 60fps and 1080p 30fps. My preference is to use 720p for the higher framerates, but mpv will use the 1080p stream by default. In order to force 60fps, add the following to your shortcut: <code class="language-plaintext highlighter-rouge">--demuxer-lavf-o=video_size=1280x720,framerate=60</code>.</p>
+
+<h2 id="but-hows-the-latency">But how’s the latency?</h2>
+
+<p>Very good! Pretty much unnoticeable to the naked eye when comparing a passthrough HDMI vs the post-upscaled mpv stream. I had to record it using super slow-mo on my phone (960fps) to be able to see any difference. I manually counted about ~21 frames delay in the output 30fps video (700ms), so at a 960/30 = 32x slowdown, that is about 22ms of latency.</p>
+
+<p>I’m not entirely sure how I have less latency than the results in the capture card comparisons I linked in Step 1 of my instructions, perhaps since mpv is running fully unbuffered? Take my measurements with a grain of salt, I only did it with my smartphone in 2 minutes (which could be doing post-processing, interpolation, etc) and I didn’t do any extensive testing with a proper lag tester.</p>
+
+<p>Here’s a 1080p60 comparison video – can you tell which is which?</p>
+
+<video controls="" width="100%" src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/switch4k/switch_latency_comparison.mp4"></video>]]></content><author><name></name></author><summary type="html"><![CDATA[After working on plex-placebo, I realised that I could potentially use Anime4K for upscaling my Switch games. Turns out it works perfectly! Nowadays, you can get a 1080p60 capture card for ~AUD$120, so it’s essentially a $120 upgrade to play Switch games on your PC at up to 4K – totally worth it imo.]]></summary></entry></feed>

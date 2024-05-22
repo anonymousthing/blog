@@ -1,0 +1,179 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Running Hifiberry OS with an IQaudIO DAC+</title>
+<meta name="generator" content="Jekyll v4.3.3" />
+<meta property="og:title" content="Running Hifiberry OS with an IQaudIO DAC+" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="HifiberryOS is a small, functional OS that supports multiple audio sources (Bluetooth, Spotify, Airplay, etc) and has a great looking web interface to control it. However, the only officially supported hardware is Hifiberry’s own DACs (which is reasonable)." />
+<meta property="og:description" content="HifiberryOS is a small, functional OS that supports multiple audio sources (Bluetooth, Spotify, Airplay, etc) and has a great looking web interface to control it. However, the only officially supported hardware is Hifiberry’s own DACs (which is reasonable)." />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2022-12-18T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Running Hifiberry OS with an IQaudIO DAC+" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2022-12-18T00:00:00+00:00","datePublished":"2022-12-18T00:00:00+00:00","description":"HifiberryOS is a small, functional OS that supports multiple audio sources (Bluetooth, Spotify, Airplay, etc) and has a great looking web interface to control it. However, the only officially supported hardware is Hifiberry’s own DACs (which is reasonable).","headline":"Running Hifiberry OS with an IQaudIO DAC+","mainEntityOfPage":{"@type":"WebPage","@id":"/2022/12/18/hifiberry_os_iqaudio_dacplus.html"},"url":"/2022/12/18/hifiberry_os_iqaudio_dacplus.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/"></a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/">blog.kumo.dev</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox/dist/css/glightbox.min.css" media="print"
+  onload="this.media='all'" />
+<link rel="stylesheet" href="/assets/css/style.css" />
+<article>
+  <h1>Running Hifiberry OS with an IQaudIO DAC+</h1>
+  <h5>Dec 18, 2022</h5>
+  <div><p><a href="https://www.hifiberry.com/hifiberryos/">HifiberryOS</a> is a small, functional OS that supports multiple audio sources (Bluetooth, Spotify, Airplay, etc) and has a great looking web interface to control it. However, the only officially supported hardware is Hifiberry’s own DACs (which is reasonable).</p>
+
+<p>However, when I was looking for a DAC for my Raspberry Pi earlier this year, Hifiberry’s products were either obscenely overpriced here in Australia, or simply out of stock. I decided to settle on the next available option, an IQaudIO DAC+.</p>
+
+<p>Unfortunately, I was disappointed when I flashed HifiberryOS to my Pi’s SD card and it immediately got stuck in a boot loop. In summary, HifiberryOS’s scripts (and OS build) are quite locked to Hifiberry devices, so this post outlines what you need to do in order to get a third-party DAC running.</p>
+
+<ol>
+  <li>Write HifiberryOS to the SD card. Don’t take the SD card out yet!</li>
+  <li>
+    <p><code class="language-plaintext highlighter-rouge">cd</code> to the <code class="language-plaintext highlighter-rouge">boot</code> partition of the SD card (the one with the FAT filesystem, and <code class="language-plaintext highlighter-rouge">config.txt</code> inside it), and run the following script:</p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="c">#!/bin/bash</span>
+
+ <span class="c"># By default, HifiberryOS has their own dtoverlay specified in config.txt. Remove it and add the iqaudio-dacplus one instead.</span>
+ <span class="nb">echo</span> <span class="s2">"Updating dtoverlays in bootloader config"</span>
+ <span class="nb">sed</span> <span class="nt">-i</span> .bak <span class="s1">'/hifiberry/d'</span> config.txt
+ <span class="nb">sed</span> <span class="nt">-i</span> .bak <span class="s1">'/i2c-gpio/d'</span> config.txt
+ <span class="nb">echo</span> <span class="s2">"dtoverlay=iqaudio-dacplus"</span> <span class="o">&gt;&gt;</span> config.txt
+
+ <span class="c"># We also need the binary dtoverlay in some cases, so add it just in case (although I think it should be available on the DACs EEPROM in most cases).</span>
+ <span class="nb">echo</span> <span class="s2">"Downloading dtoverlay blob"</span>
+ curl <span class="nt">-O</span> <span class="s2">"https://github.com/raspberrypi/firmware/raw/master/boot/overlays/iqaudio-dacplus.dtbo"</span> <span class="o">&gt;</span> overlays/iqaudio-dacplus.dtbo
+
+ <span class="nb">touch </span>noreboot
+ <span class="nb">touch </span>ssh
+
+ <span class="nb">echo</span> <span class="s2">"Done!"</span>
+</code></pre></div>    </div>
+  </li>
+  <li>
+    <p>This should let you boot and go through the setup flow. After you have finished setting up HifiberryOS, ssh into it and run the following script.
+Note that you’ll need to update the <code class="language-plaintext highlighter-rouge">raspberrypi/firmware</code> commit hash in the script to be the correct commit for the Linux kernel version that you’re running (you can check your kernel version with <code class="language-plaintext highlighter-rouge">uname -r</code>). You can do this by going to the <a href="https://github.com/raspberrypi/firmware/commits/master">raspberrypi/firmware Github commits page</a>, looking for a commit labelled “kernel: bump to X.YY.ZZ” (where X.YY.ZZ is your kernel version), and copying that commit hash.</p>
+
+    <div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code> <span class="c">#!/bin/bash</span>
+
+ <span class="c"># hifiberry-detect is a service that searches for a Hifiberry HAT and writes the appropriate dtoverlay into /boot/config.txt. Disable this since we don't have a Hifiberry.</span>
+ <span class="nb">echo</span> <span class="s2">"Removing hifiberry-detect service"</span>
+ systemctl stop hifiberry-detect
+ systemctl disable hifiberry-detect
+ <span class="nb">rm</span> /usr/lib/systemd/system/hifiberry-detect.service
+
+ <span class="c"># Run this again, because hifiberry-detect will have written it after we booted.</span>
+ <span class="nb">echo</span> <span class="s2">"Dropping hifiberry dtoverlays"</span>
+ mount <span class="nt">-o</span> remount,rw /boot
+ <span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'/hifiberry/d'</span> /boot/config.txt
+
+ <span class="c"># Download and depmod the kernel modules</span>
+ <span class="c"># This commit corresponds to version 5.15.78; you'll need to find the correct commit as explained above.</span>
+ <span class="nb">echo</span> <span class="s2">"Downloading kernel modules"</span>
+ <span class="nv">VERSION</span><span class="o">=</span><span class="s2">"5.15.78-v7l"</span>
+ curl <span class="nt">-L</span> <span class="s2">"https://github.com/raspberrypi/firmware/raw/6cbf00359959cf7381f4e3773037c7d5573d94b2/modules/</span><span class="nv">$VERSION</span><span class="s2">%2B/kernel/sound/soc/bcm/snd-soc-iqaudio-dac.ko.xz"</span> <span class="o">&gt;</span> <span class="s2">"/lib/modules/</span><span class="nv">$VERSION</span><span class="s2">/kernel/sound/soc/bcm/snd-soc-iqaudio-dac.ko.xz"</span>
+ unxz <span class="s2">"/lib/modules/</span><span class="nv">$VERSION</span><span class="s2">/kernel/sound/soc/bcm/snd-soc-iqaudio-dac.ko.xz"</span>
+ <span class="nb">echo</span> <span class="s2">"Installing kernel modules"</span>
+ depmod
+ modprobe snd-soc-iqaudio-dac
+
+ <span class="c"># There are a bunch of calls to `aplay -L` etc that try to find a Hifiberry device. We replace those greps with "IQaudIO" instead, so that it matches our DAC. Replace this with your own necessary string, if you have some other third-party DAC.</span>
+ <span class="nb">echo</span> <span class="s2">"Updating references to hifiberry devices in hifiberry packages"</span>
+ <span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s/grep hifiberry/grep IQaudIO/g'</span> /opt/hifiberry/bin/reconfigure-players
+
+ <span class="c"># pause-all is triggered whenever changing tracks; it needs a lookup for the sound card to detect active players, so we need to update it here too</span>
+ <span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s/grep -i hifiberry/grep -i IQaudIO/g'</span> /opt/hifiberry/bin/pause-all
+
+ <span class="c"># `check_dsp` function was broken on my install for some reason (I'm not sure why, when it should theoretically just return "false" for "no DSP HAT detected"), so I disabled it.</span>
+ <span class="nb">sed</span> <span class="nt">-i</span> <span class="s1">'s/check_dsp() {/check_dsp() {\
+ return/g'</span> /opt/hifiberry/bin/reconfigure-players
+ <span class="c"># dsptoolkit was also failing, so disable it too.</span>
+ <span class="nb">mv</span> /bin/dsptoolkit /bin/dsptoolkit2
+ <span class="nb">touch</span> /bin/dsptoolkit
+ <span class="nb">chmod</span> +x /bin/dsptoolkit
+
+ <span class="c"># Write the new settings, and then reboot.</span>
+ <span class="nb">echo</span> <span class="s2">"Reconfiguring players"</span>
+ /opt/hifiberry/bin/reconfigure-players
+
+ <span class="nb">echo</span> <span class="s2">"Done! Rebooting in 10 seconds..."</span>
+ <span class="nb">sleep </span>10
+ reboot
+</code></pre></div>    </div>
+  </li>
+  <li>Congratulations! Hopefully, you have HifiberryOS working with an IQaudIO DAC 🙂</li>
+</ol>
+</div>
+</article>
+<script>
+  /** Add links to headings: from https://darn.es/adding-heading-links-to-your-jekyll-blog/ */
+  const headings = document.querySelectorAll('h2[id],h3[id]');
+  const linkContent = '🔗';
+  for (const heading of headings) {
+    const linkIcon = document.createElement('a');
+    linkIcon.classList.add('headingLink')
+    linkIcon.setAttribute('href', `#${heading.id}`);
+    linkIcon.innerHTML = linkContent;
+    heading.prepend(linkIcon);
+  }
+</script>
+<script src="https://utteranc.es/client.js" repo="bitnimble/bitnimble.github.io" issue-term="pathname"
+  label="post-comments" theme="github-light" crossorigin="anonymous" async>
+  </script>
+
+<script src="https://cdn.jsdelivr.net/gh/mcstudios/glightbox/dist/js/glightbox.min.js"></script>
+<script type="text/javascript">
+  const lightbox = GLightbox({
+    touchNavigation: true,
+    loop: true,
+    autoplayVideos: false
+  });
+</script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading"></h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name"></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>The ??? blog about random tech stuff</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>

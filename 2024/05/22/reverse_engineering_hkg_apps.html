@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en"><head>
+  <meta charset="utf-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1"><!-- Begin Jekyll SEO tag v2.8.0 -->
+<title>Reverse engineering the Hyundai Bluelink and Kia Connect Apps</title>
+<meta name="generator" content="Jekyll v4.3.3" />
+<meta property="og:title" content="Reverse engineering the Hyundai Bluelink and Kia Connect Apps" />
+<meta property="og:locale" content="en_US" />
+<meta name="description" content="I recently bought a Hyundai Ioniq 6; it’s a fantastic car that I’m enjoying a lot, and I only have a couple of nits with it that I’ve largely gotten over now." />
+<meta property="og:description" content="I recently bought a Hyundai Ioniq 6; it’s a fantastic car that I’m enjoying a lot, and I only have a couple of nits with it that I’ve largely gotten over now." />
+<meta property="og:type" content="article" />
+<meta property="article:published_time" content="2024-05-22T00:00:00+00:00" />
+<meta name="twitter:card" content="summary" />
+<meta property="twitter:title" content="Reverse engineering the Hyundai Bluelink and Kia Connect Apps" />
+<script type="application/ld+json">
+{"@context":"https://schema.org","@type":"BlogPosting","dateModified":"2024-05-22T00:00:00+00:00","datePublished":"2024-05-22T00:00:00+00:00","description":"I recently bought a Hyundai Ioniq 6; it’s a fantastic car that I’m enjoying a lot, and I only have a couple of nits with it that I’ve largely gotten over now.","headline":"Reverse engineering the Hyundai Bluelink and Kia Connect Apps","mainEntityOfPage":{"@type":"WebPage","@id":"/2024/05/22/reverse_engineering_hkg_apps.html"},"url":"/2024/05/22/reverse_engineering_hkg_apps.html"}</script>
+<!-- End Jekyll SEO tag -->
+<link rel="stylesheet" href="/assets/main.css"><link type="application/atom+xml" rel="alternate" href="/feed.xml" title="" /></head>
+<body><header class="site-header" role="banner">
+
+  <div class="wrapper"><a class="site-title" rel="author" href="/"></a><nav class="site-nav">
+        <input type="checkbox" id="nav-trigger" class="nav-trigger" />
+        <label for="nav-trigger">
+          <span class="menu-icon">
+            <svg viewBox="0 0 18 15" width="18px" height="15px">
+              <path d="M18,1.484c0,0.82-0.665,1.484-1.484,1.484H1.484C0.665,2.969,0,2.304,0,1.484l0,0C0,0.665,0.665,0,1.484,0 h15.032C17.335,0,18,0.665,18,1.484L18,1.484z M18,7.516C18,8.335,17.335,9,16.516,9H1.484C0.665,9,0,8.335,0,7.516l0,0 c0-0.82,0.665-1.484,1.484-1.484h15.032C17.335,6.031,18,6.696,18,7.516L18,7.516z M18,13.516C18,14.335,17.335,15,16.516,15H1.484 C0.665,15,0,14.335,0,13.516l0,0c0-0.82,0.665-1.483,1.484-1.483h15.032C17.335,12.031,18,12.695,18,13.516L18,13.516z"/>
+            </svg>
+          </span>
+        </label>
+
+        <div class="trigger"><a class="page-link" href="/">blog.kumo.dev</a></div>
+      </nav></div>
+</header>
+<main class="page-content" aria-label="Content">
+      <div class="wrapper">
+        <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/glightbox/dist/css/glightbox.min.css" media="print"
+  onload="this.media='all'" />
+<link rel="stylesheet" href="/assets/css/style.css" />
+<article>
+  <h1>Reverse engineering the Hyundai Bluelink and Kia Connect Apps</h1>
+  <h5>May 22, 2024</h5>
+  <div><p>I recently bought a Hyundai Ioniq 6; it’s a fantastic car that I’m enjoying a lot, and I only have a couple of nits with it that I’ve largely gotten over now.</p>
+
+<p>Hyundai/Kia/Genesis (HKG for short) supports connectivity with their newer cars - they essentially have a 4G connection and are able to communicate with the mobile app anytime it has signal. The app allows you to both read vehicle state (e.g. whether the climate control is active, or roll up your windows) and perform actions (lock and unlock your doors, remotely start the vehicle and turn on the climate control, etc). It also gives you optional notifications for alerts such as if you forget to lock your doors.</p>
+
+<p>However, Hyundai doesn’t currently expose any way for you to integrate their vehicle APIs with external systems. I really wanted to get my vehicle data ingested into Home Assistant (HA), so that I could see my car’s battery level, remaining distance-to-empty, along with nearby charging stations, all on my home dashboard.</p>
+
+<h2 id="prior-art">Prior Art</h2>
+
+<p>A quick Google shows that some other folks have already done a lot of the hard work to reverse engineer / sniff the APIs that the app hits. To summarise:</p>
+
+<ul>
+  <li>There are two main implementations: <a href="https://github.com/Hacksore/bluelinky">Bluelinky</a> (Node.js) and <a href="https://github.com/Hyundai-Kia-Connect/hyundai_kia_connect_api">hyundai_kia_connect_api</a> (Python)</li>
+  <li>There is an open-source Home Assistant Community Store (HACS) integration to add Hyundai/Kia vehicle support into HA called <a href="https://github.com/Hyundai-Kia-Connect/kia_uvo">kia_uvo</a>, which sits on top of hyundai_kia_connect_api</li>
+  <li>There is a <a href="https://discord.gg/HwnG8sY">Discord community</a> where we coordinate efforts and knowledge</li>
+  <li>Every region (US/Canada/Europe/China/Australia) has its own API server. The US and Canada APIs are the same, and the Europe + China + Australia APIs are largely the same with minor regional variations. The US/Canada vs Europe/China/Australia APIs are <em>completely</em> different.</li>
+  <li>Hyundai vs Kia vs Genesis have different API servers and tokens/secrets, but the APIs and schemas are the same for a given region.</li>
+  <li>Newer HKG cars running ccOS have a different API compared to older vehicles.</li>
+  <li>The US has an online web portal that can perform many of the same functions as the mobile app, making it easier to reverse engineer. Other regions only have a mobile app, which is very locked down and may be more difficult to reverse engineer.</li>
+</ul>
+
+<p>Unfortunately, it seems that I was the first one here from Australia, so I would have to do the work and track down all of the endpoints, secrets, etc for the Australia region.</p>
+
+<p>The APIs were largely reverse engineered by performing a man-in-the-middle (MITM) attack on the apps and sniffing the traffic flow. However, because of protections that HKG put in place on the app, achieving this is a bit fiddly. This blog post goes into detail on what’s necessary to do this, and is honestly mostly documentation for myself because I had to do this again after a year and completely forgot how.</p>
+
+<h2 id="developer-environment---android-vm">Developer environment - Android VM</h2>
+
+<ol>
+  <li>It’s easiest to do everything via Windows Subsystem for Android (WSA). Because you’ll need root access and Magisk in an Android environment, don’t install WSA the regular way through the Microsoft Store - you’ll need to find a rooted + Magisk WSA installer online (e.g. https://github.com/LSPosed/MagiskOnWSALocal). This requires administrative access to your computer, so research your own distribution with caution. If you feel uncomfortable with this, you can always run it in a virtual machine, as long as your computer supports nested virtualization. Root will be used to load Frida, which we’ll need later, and Magisk is needed so that we can hide the fact that we’re root from Bluelink (which tries to detect root and then closes the app if it finds out).
+    <ul>
+      <li>Note: there’s <a href="https://github.com/MustardChef/WSABuilds/issues/159">currently a bug</a> where the internet inside the WSA instance doesn’t work. Until that’s fixed, it’s best to use WSA 2306.40000.4.0 or earlier, which doesn’t have the issue.</li>
+    </ul>
+  </li>
+  <li>Search for <code class="language-plaintext highlighter-rouge">Windows Subsystem for Android</code> in the Start Menu to open the WSA settings. Go to “Advanced Settings” and enable Developer Mode.</li>
+  <li>For some reason, adb debugging from WSL -&gt; WSA didn’t want to connect, so to work around this, I just enabled “Local network access” in Advanced Settings as well, and then connected adb via my computer’s LAN address <code class="language-plaintext highlighter-rouge">192.168.1.X:58526</code> instead, effectively just doing a loopback but through my network.
+<img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/hkg/wsa_settings.png" alt="WSA Settings" class="centered" /></li>
+  <li>Boot WSA, either by clicking “Manage developer settings” or by going back to the System tab and clicking the expander on “Files”. Magisk should open and ask to finish installation - allow it to reboot the WSA instance.</li>
+  <li>Once rebooted, open Magisk’s settings cog in the top right, scroll down, and enable Zygisk. Reboot again by leaving the settings menu and hitting the reboot button in the top right of Magisk.</li>
+  <li>Open Magisk settings again, and enable “Enforce DenyList”. We’ll configure it for our app later.</li>
+  <li>Download the latest version of <code class="language-plaintext highlighter-rouge">frida-server-X.Y.Z-android-x86_64</code> from <a href="https://github.com/frida/frida/releases">their Github</a>. Push it to your WSA instance, make it executable and run it as superuser:</li>
+</ol>
+
+<div class="language-bash highlighter-rouge"><div class="highlight"><pre class="highlight"><code>adb push frida-server-X.Y.Z-android-x86_64 /data/local/tmp/
+adb shell
+<span class="nb">chmod</span> +x /data/local/tmp/frida-server-X.Y.Z-android-x86_64
+
+<span class="c"># This will pop a Magisk prompt, so make sure to accept it</span>
+su
+
+<span class="c"># This will "hang" with no output - this is expected.</span>
+/data/local/tmp/frida-server-X.Y.Z-android-x86_64
+</code></pre></div></div>
+
+<h2 id="developer-environment---ide">Developer environment - IDE</h2>
+
+<p>You can use whatever you want here, but I used VSCode with the <a href="https://github.com/APKLab/APKLab">APKLab</a> extension (which wraps a collection of Android APK decompilation and deobfuscation tools).</p>
+
+<h2 id="prepping-the-app">Prepping the app</h2>
+
+<p>Unfortunately, the Bluelink app is quite well protected, and has various safeguards that will pop a notification and then close the app after you acknowledge it. These safeguards include preventing:</p>
+
+<ul>
+  <li>Attempting to bypass the SSL pinning / installing a different certificate</li>
+  <li>Enabling USB debugging on your device</li>
+  <li>Having a rooted device</li>
+  <li>Altering the binary in any way</li>
+  <li>and more!</li>
+</ul>
+
+<p>So, we’ll need to prepare the app for MITM by removing some of these safeguards. We’ll do this by decompiling the app, flipping a flag (which seems to be a backdoor / escape hatch), enabling debugging, and then recompiling it all again.</p>
+
+<ol>
+  <li>Get “Split APKs Installer” (SAI) off <a href="https://github.com/Aefyr/SAI">Github</a> or <a href="https://f-droid.org/packages/com.aefyr.sai.fdroid/">F-droid</a> and install it.</li>
+  <li>Open it and make a backup of your Bluelink / Kia Connect app. This should export a .apks file into your selected folder. Move this file to your computer.</li>
+  <li>Unzip the .apks file into its constituent .apk files which should consist of a <code class="language-plaintext highlighter-rouge">base.apk</code>, a <code class="language-plaintext highlighter-rouge">split_config.arm64_v8a.apk</code>, and a <code class="language-plaintext highlighter-rouge">split_config.xxhdpi.apk</code>.</li>
+  <li>Open VSCode and choose “APKLab: Open an APK” and select <code class="language-plaintext highlighter-rouge">base.apk</code>. Enable Java decompilation in the next settings modal, click OK, let it decompile, and then open the resulting directory in VSCode again. This should create a new <code class="language-plaintext highlighter-rouge">base</code> directory in the folder where you extracted your apks.</li>
+  <li>Open <code class="language-plaintext highlighter-rouge">base/java_src/com/apk_shield/C0001skdb.java</code> and scroll down to the bottom of the file (it should be fairly large, ~22.5k LOC). Hopefully, there should be a ~60LOC function that handles a bunch of notification stuff. At the bottom of that function, there should be a block that looks like so:</li>
+</ol>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>        <span class="k">if</span> <span class="o">(</span><span class="n">pureApp</span> <span class="o">!=</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="n">i</span> <span class="o">==</span> <span class="mi">3</span><span class="o">)</span> <span class="o">{</span>
+            <span class="k">if</span> <span class="o">(!</span><span class="n">f12M</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="s">"true"</span><span class="o">))</span> <span class="o">{</span>
+                <span class="n">f19f</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+                <span class="k">return</span><span class="o">;</span>
+            <span class="o">}</span>
+            <span class="n">pureApp</span><span class="o">.</span><span class="na">m83a</span><span class="o">();</span>
+            <span class="n">m70g</span><span class="o">();</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="k">if</span> <span class="o">(</span><span class="n">pureApp</span> <span class="o">==</span> <span class="kc">null</span> <span class="o">||</span> <span class="o">(</span><span class="n">i</span> <span class="o">==</span> <span class="mi">2</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="n">f7H</span><span class="o">.</span><span class="na">contains</span><span class="o">(</span><span class="s">"true"</span><span class="o">)))</span> <span class="o">{</span>
+            <span class="n">pureApp</span><span class="o">.</span><span class="na">m74c</span><span class="o">();</span>
+            <span class="n">f19f</span> <span class="o">=</span> <span class="kc">false</span><span class="o">;</span>
+        <span class="o">}</span> <span class="k">else</span> <span class="o">{</span>
+            <span class="n">pureApp</span><span class="o">.</span><span class="na">m83a</span><span class="o">();</span>
+            <span class="n">m70g</span><span class="o">();</span>
+        <span class="o">}</span>
+</code></pre></div></div>
+
+<ol>
+  <li>We’re interested in the first if statement, specifically <code class="language-plaintext highlighter-rouge">!f12M.contains("true")</code>. If you go all the way back up to the top of the file or use a search, you should hopefully be able to see the variable declaration which will look like:</li>
+</ol>
+
+<div class="language-java highlighter-rouge"><div class="highlight"><pre class="highlight"><code>    <span class="cm">/* renamed from: M */</span>
+    <span class="kd">private</span> <span class="kd">static</span> <span class="nc">String</span> <span class="n">f12M</span> <span class="o">=</span> <span class="s">"true"</span><span class="o">;</span>
+</code></pre></div></div>
+
+<ol>
+  <li>We now know that the variable that we’re after is <code class="language-plaintext highlighter-rouge">M</code>. Open
+<code class="language-plaintext highlighter-rouge">base/smali/com/apk_shield/skdb.smali</code>. After you skip the first 100 lines or so which are just
+initialising static fields, you should reach a constructor that then defines a bunch of private
+variables - this follow the same structure as the Java. Look for a line like <code class="language-plaintext highlighter-rouge">sput-object v0,
+Lcom/apk_shield/skdb;-&gt;M:Ljava/lang/String;</code> (note the <code class="language-plaintext highlighter-rouge">M</code> variable name).</li>
+  <li>Immediately before that line, there should be a <code class="language-plaintext highlighter-rouge">const-string v0, "true"</code> defined. Change <code class="language-plaintext highlighter-rouge">"true"</code> to <code class="language-plaintext highlighter-rouge">"false"</code>.</li>
+  <li>Right click <code class="language-plaintext highlighter-rouge">apktool.yml</code> again, and click “APKLab: Rebuild the APK”. Hopefully this works. If not, deal with any errors (you might need to install various Android build dependencies etc). This should result in a <code class="language-plaintext highlighter-rouge">base/dist/base.apk</code> being created.</li>
+</ol>
+
+<p>We now need to rebundle all three split apks back together again. Unfortunately, since we have modified the base.apk, the apk signature will have changed and we need it to be the same for all three apks. There’s probably a more focused tool for this, but I’ve just been using <a href="https://github.com/mitmproxy/android-unpinner">android-unpinner</a>. This will enable debugging support for the app, bundle a small amount of certificate unpinning code (this doesn’t really matter since we’ll inject our own via Frida anyway), and re-sign all apks.</p>
+
+<ol>
+  <li>Install android-unpinner using the instructions in their readme.</li>
+  <li><code class="language-plaintext highlighter-rouge">cd</code> to the root of where you extracted your apks.</li>
+  <li>Run <code class="language-plaintext highlighter-rouge">android-unpinner patch-apks base/dist/base.apk split_config.xxhdpi.apk split_config.arm64_v8a.apk</code>. This will create <code class="language-plaintext highlighter-rouge">*.unpinned.apk</code> versions of all the specified apks.</li>
+  <li>Run <code class="language-plaintext highlighter-rouge">adb install-multiple -r -d base/dist/base.unpinned.apk split_config.xxhdpi.unpinned.apk split_config.arm64_v8a.unpinned.apk</code> to install it into your WSA instance. This should install Bluelink, and you should be able to see it in your Windows start menu now.</li>
+  <li>Open Magisk settings again, and then navigate to the “Configure DenyList” menu. Check BlueLink (make sure to also expand it and ensure that any other sub-apps are checked as well).</li>
+</ol>
+
+<h2 id="prepping-the-mitm">Prepping the MITM</h2>
+
+<ol>
+  <li>Download and install <a href="https://mitmproxy.org/">mitmproxy</a>. It’s okay to install this in Windows
+directly. Then, open the Start Menu, search for <code class="language-plaintext highlighter-rouge">mitmweb</code>, and run it. This should open up a terminal with some logs, and also open a web page where detected traffic will be shown.</li>
+  <li>Open WSA settings again, go to Advanced Settings, and click on “Manage developer settings”. This should open the Developer Options activity view inside Android.</li>
+  <li>Click the search button in the top right, and search for “Wifi”. Select the “VirtWifi” network.
+<img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/hkg/virtwifi.png" alt="Wifi listing" class="centered" /></li>
+  <li>Click the pencil in the top right, and add a manual proxy configuration. Again, my WSA network was being buggy, so I just used my LAN address for my PC here (e.g. 192.168.1.X, port 8080), but theoretically you could also use the IP address for the WSA network adapter on the Windows side which you can get from <code class="language-plaintext highlighter-rouge">ipconfig</code>.
+<img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/hkg/virtwifi_settings.png" alt="VirtWifi settings" class="centered" /></li>
+</ol>
+
+<h2 id="sniffing-the-traffic">Sniffing the traffic</h2>
+
+<ol>
+  <li>Run the app - but not the normal way! We need to start it with Frida and inject some code that will disable as much SSL pinning as possible. The regular anti-SSL-pinning code that APKLab and android-unpinner perform isn’t sufficient. Download <a href="https://gist.github.com/bitnimble/a488fefcfcf6be222713b489502637bf">this gist</a> as <code class="language-plaintext highlighter-rouge">frida.js</code>. This is a collection of a variety of SSL pinning bypasses that I’ve amalgamated together that seem to work.</li>
+  <li>Install the latest version of <code class="language-plaintext highlighter-rouge">frida</code> with <code class="language-plaintext highlighter-rouge">pip install frida-tools</code>.</li>
+  <li>Start the app with <code class="language-plaintext highlighter-rouge">frida -l frida.js -U -f com.hyundai.bluelink.aus</code>.</li>
+  <li>This should open the Bluelink app, load the splash + login page, and give you a Windows notification saying something like “The app was forged. Please install the app from the valid source”. However, we can now just ignore this notification because of the work we did to prep the app beforehand - the app should not close when this notification comes up.</li>
+  <li>Looking at the mitmweb page, we should also see some traffic already coming in. The app will be registering for push notifications, downloading JS chunks, and acquiring any tokens and stamps it needs.
+<img src="https://media.githubusercontent.com/media/bitnimble/bitnimble.github.io/gh-pages/media/hkg/mitm.png" alt="mitmweb logs" class="centered" /></li>
+  <li>Login to the app. This should fire off a whole series of requests, performing authentication etc.</li>
+</ol>
+
+<p>Now that the app has been successfully MITM’d and traffic can be sniffed, the API endpoints can be reverse engineered without too much more effort.</p>
+
+<p>The next post will look at the login flow, stamp generation, and a summary of the APIs.</p>
+</div>
+</article>
+<script>
+  /** Add links to headings: from https://darn.es/adding-heading-links-to-your-jekyll-blog/ */
+  const headings = document.querySelectorAll('h2[id],h3[id]');
+  const linkContent = '🔗';
+  for (const heading of headings) {
+    const linkIcon = document.createElement('a');
+    linkIcon.classList.add('headingLink')
+    linkIcon.setAttribute('href', `#${heading.id}`);
+    linkIcon.innerHTML = linkContent;
+    heading.prepend(linkIcon);
+  }
+</script>
+<script src="https://utteranc.es/client.js" repo="bitnimble/bitnimble.github.io" issue-term="pathname"
+  label="post-comments" theme="github-light" crossorigin="anonymous" async>
+  </script>
+
+<script src="https://cdn.jsdelivr.net/gh/mcstudios/glightbox/dist/js/glightbox.min.js"></script>
+<script type="text/javascript">
+  const lightbox = GLightbox({
+    touchNavigation: true,
+    loop: true,
+    autoplayVideos: false
+  });
+</script>
+
+      </div>
+    </main><footer class="site-footer h-card">
+  <data class="u-url" href="/"></data>
+
+  <div class="wrapper">
+
+    <h2 class="footer-heading"></h2>
+
+    <div class="footer-col-wrapper">
+      <div class="footer-col footer-col-1">
+        <ul class="contact-list">
+          <li class="p-name"></li></ul>
+      </div>
+
+      <div class="footer-col footer-col-2"><ul class="social-media-list"></ul>
+</div>
+
+      <div class="footer-col footer-col-3">
+        <p>The ??? blog about random tech stuff</p>
+      </div>
+    </div>
+
+  </div>
+
+</footer>
+</body>
+
+</html>
